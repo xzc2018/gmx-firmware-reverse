@@ -1,0 +1,267 @@
+-- cpu_io: Интерфейс Z80: дешифрация портов, стробы записи, чтение портов на шину DB, WR на системную плату
+-- Схема GMX "PentaGON", FPGA EPF8452ALC84.
+SUBDESIGN cpu_io
+(
+	A[15..0],
+	IORQ_n,
+	M1,
+	MD[7..0],
+	RD_n,
+	clk7,
+	cpu_clk,
+	turbo,
+	sw[6..0],
+	blkext,
+	blkex2,
+	st_pent,
+	brd[2..0],
+	dos_act,
+	ml_sys[2..0],
+	ml_sm[2..0],
+	ml_blkpk1,
+	ml_scr,
+	ml_turbo,
+	ml_gfx,
+	ml_zero,
+	h[8..0]	: INPUT;
+	o_rd_ff,
+	o_iowr_go_n,
+	o_port_wr_clk,
+	o_a8_buf,
+	o_a9_buf,
+	o_a10_buf,
+	o_a11_buf,
+	o_a12_buf,
+	o_a14_buf,
+	o_a15_buf,
+	o_sel_78fd,
+	o_sel_7efd,
+	o_db_oe,
+	o_wr7ffd_n,
+	o_wrdffd_n,
+	o_sel00_n,
+	o_wr_mb_n,
+	o_db_out[7..0]	: OUTPUT;
+)
+VARIABLE
+	io_a23            : LCELL;	-- цикл IORQ (не INTA) с A2=A3=1
+	a_7540            : LCELL;	-- A7 & A5 & A4 & A0
+	rd_ff             : LCELL;	-- выборка порта #FF (A7..A0 все 1)
+	io_wr             : LCELL;	-- цикл записи в порт: IORQ, нет RD, не INTA
+	iowr_go_n         : DFF;	-- 0 = начало цикла записи в порт (строб #FE и SCR, как у Pentagon)
+	iowr_d[4..1]      : DFF;	-- задержка цикла записи в порт по такту Z80
+	iowr_tap          : LCELL;	-- выбор ступени задержки (турбо/норма)
+	port_wr_clk       : LCELL;	-- строб записи в регистры портов (конец цикла)
+	a8_buf            : LCELL;	-- буфер A8
+	a9_buf            : LCELL;	-- буфер A9
+	a10_buf           : LCELL;	-- буфер A10
+	a11_buf           : LCELL;	-- буфер A11
+	a12_buf           : LCELL;	-- буфер A12
+	a14_buf           : LCELL;	-- буфер A14
+	a15_buf           : LCELL;	-- буфер A15
+	a8lo_ext          : LCELL;	-- A8=0 и расширенные порты разрешены (BLKEXT=0)
+	sel_7xfd          : LCELL;	-- #7xFD: A15=0, A14=1, A8=0, A1=0, BLKEXT=0
+	sel_78fd          : LCELL;	-- выборка #78FD (A10=0, A9=0)
+	sel_7efd          : LCELL;	-- выборка #7EFD (A10=1, A9=1)
+	sel_7e78          : LCELL;	-- #7EFD или #78FD
+	sel_rd_ext        : LCELL;	-- #7EFD, #78FD или #7AFD (чтение)
+	db_oe             : LCELL;	-- FPGA выдаёт данные на DB
+	a1_a15            : LCELL;	-- A1 # A15
+	wr7ffd_n          : LCELL;	-- запись #7FFD (A1=0, A15=0; без BLKEX2 ещё A14=1, A8=0/BLKEXT), активный 0
+	wrdffd_n          : LCELL;	-- запись #DFFD (A15=1, A13=0, A1=0, не BLKEXT), активный 0
+	sel00_n           : LCELL;	-- порт xx00 (A0=A1=A5=0, не теневой режим), активный 0
+	wr_mb_n           : LCELL;	-- WR на материнскую плату (WROUT/)
+	ffb[7..0]         : DFF;	-- байт MD, защёлкнутый по h2 для чтения порта #FF
+	rd7a[7..0]        : LCELL;	-- данные при чтении #FF / #7AFD
+	rd7e[7..0]        : LCELL;	-- данные при чтении #78FD / #7EFD
+	db_out[7..0]      : LCELL;	-- данные, выдаваемые FPGA на шину DB
+BEGIN
+
+	-- io_a23: цикл IORQ (не INTA) с A2=A3=1
+	io_a23 = A2 & A3 & !IORQ_n & M1;
+
+	-- a_7540: A7 & A5 & A4 & A0
+	a_7540 = A4 & A7 & A0 & A5;
+
+	-- rd_ff: выборка порта #FF (A7..A0 все 1)
+	rd_ff = A6 & a_7540 & io_a23 & A1;
+
+	-- io_wr: цикл записи в порт: IORQ, нет RD, не INTA
+	io_wr = RD_n & !IORQ_n & M1;
+
+	-- iowr_go_n: 0 = начало цикла записи в порт (строб #FE и SCR, как у Pentagon)
+	iowr_go_n.clk = clk7;
+	iowr_go_n.d = !io_wr;
+
+	-- iowr_d[4..1]: задержка цикла записи в порт по такту Z80
+	--   iowr_d4: ступень 4
+	--   iowr_d3: ступень 3
+	--   iowr_d2: ступень 2
+	--   iowr_d1: задержка io_wr по такту Z80, ступень 1
+	iowr_d[].clk = cpu_clk;
+	iowr_d2.clrn = io_wr;
+	iowr_d1.clrn = io_wr;
+	iowr_d[].d = (iowr_d[3..1], VCC);
+
+	-- iowr_tap: выбор ступени задержки (турбо/норма)
+	IF !turbo THEN iowr_tap = iowr_d3; ELSE iowr_tap = iowr_d4; END IF;
+
+	-- port_wr_clk: строб записи в регистры портов (конец цикла)
+	port_wr_clk = (!iowr_d2 & !iowr_d1)
+		# iowr_tap;
+
+	-- a8_buf: буфер A8
+	a8_buf = A8;
+
+	-- a9_buf: буфер A9
+	a9_buf = A9;
+
+	-- a10_buf: буфер A10
+	a10_buf = A10;
+
+	-- a11_buf: буфер A11
+	a11_buf = A11;
+
+	-- a12_buf: буфер A12
+	a12_buf = A12;
+
+	-- a14_buf: буфер A14
+	a14_buf = A14;
+
+	-- a15_buf: буфер A15
+	a15_buf = A15;
+
+	-- a8lo_ext: A8=0 и расширенные порты разрешены (BLKEXT=0)
+	a8lo_ext = !a8_buf & !blkext;
+
+	-- sel_7xfd: #7xFD: A15=0, A14=1, A8=0, A1=0, BLKEXT=0
+	sel_7xfd = !A1 & !a15_buf & a14_buf & a8lo_ext;
+
+	-- sel_78fd: выборка #78FD (A10=0, A9=0)
+	sel_78fd = !a9_buf & !a10_buf & sel_7xfd;
+
+	-- sel_7efd: выборка #7EFD (A10=1, A9=1)
+	sel_7efd = a9_buf & a10_buf & sel_7xfd;
+
+	-- sel_7e78: #7EFD или #78FD
+	sel_7e78 = sel_7efd
+		# sel_78fd;
+
+	-- sel_rd_ext: #7EFD, #78FD или #7AFD (чтение)
+	sel_rd_ext = sel_7e78
+		# (a9_buf & !a10_buf & sel_7xfd);
+
+	-- db_oe: FPGA выдаёт данные на DB
+	db_oe = (!RD_n & rd_ff & !dos_act)
+		# (!RD_n & sel_rd_ext);
+
+	-- a1_a15: A1 # A15
+	a1_a15 = A1
+		# a15_buf;
+
+	-- wr7ffd_n: запись #7FFD (A1=0, A15=0; без BLKEX2 ещё A14=1, A8=0/BLKEXT), активный 0
+	wr7ffd_n = (!a14_buf & !blkex2)
+		# a1_a15
+		# (!blkex2 & a8lo_ext);
+
+	-- wrdffd_n: запись #DFFD (A15=1, A13=0, A1=0, не BLKEXT), активный 0
+	wrdffd_n = !a15_buf
+		# A13
+		# A1
+		# blkext;
+
+	-- sel00_n: порт xx00 (A0=A1=A5=0, не теневой режим), активный 0
+	sel00_n = A5
+		# A0
+		# A1
+		# dos_act;
+
+	-- wr_mb_n: WR на материнскую плату (WROUT/)
+	wr_mb_n = (!io_wr & port_wr_clk)
+		# (A6 & port_wr_clk)
+		# sel_7xfd;
+
+	-- ffb[7..0]: байт MD, защёлкнутый по h2 для чтения порта #FF
+	--   ffb7: MD7 для #FF
+	--   ffb6: MD6 для #FF
+	--   ffb5: MD5 для #FF
+	--   ffb4: MD4 для #FF
+	--   ffb3: MD3 для #FF
+	--   ffb2: MD2 для #FF
+	--   ffb1: MD1 для #FF
+	--   ffb0: MD0, защёлкнутый для чтения #FF
+	ffb[].clk = !h2;
+	ffb[].d = MD[];
+
+	-- rd7a[7..0]: данные при чтении #FF / #7AFD
+	--   rd7a7: DB7: ffb7 / BRD0
+	--   rd7a6: DB6: ffb6 / SM2
+	--   rd7a5: DB5: ffb5 / SM1
+	--   rd7a4: DB4: ffb4 / SM0
+	--   rd7a3: DB3: ffb3 / 0 (SYS3 нет)
+	--   rd7a2: DB2: ffb2 / SYS2
+	--   rd7a1: DB1: ffb1 / SYS1
+	--   rd7a0: DB0 при чтении #FF / #7AFD: ffb0 / SYS0
+	IF !rd_ff # dos_act THEN rd7a7 = brd0; ELSE rd7a7 = ffb7; END IF;
+	IF !dos_act & rd_ff THEN rd7a6 = ffb6; ELSE rd7a6 = ml_sm2; END IF;
+	IF !dos_act & rd_ff THEN rd7a5 = ffb5; ELSE rd7a5 = ml_sm1; END IF;
+	IF !dos_act & rd_ff THEN rd7a4 = ffb4; ELSE rd7a4 = ml_sm0; END IF;
+	IF !dos_act & rd_ff THEN rd7a3 = ffb3; ELSE rd7a3 = ml_zero; END IF;
+	IF !dos_act & rd_ff THEN rd7a2 = ffb2; ELSE rd7a2 = ml_sys2; END IF;
+	IF !dos_act & rd_ff THEN rd7a1 = ffb1; ELSE rd7a1 = ml_sys1; END IF;
+	IF !dos_act & rd_ff THEN rd7a0 = ffb0; ELSE rd7a0 = ml_sys0; END IF;
+
+	-- rd7e[7..0]: данные при чтении #78FD / #7EFD
+	--   rd7e7: DB7: BRD1 / BRD2
+	--   rd7e6: DB6: SW6 / 0 (BLK1 нет)
+	--   rd7e5: DB5: SW5 / BLKEXT
+	--   rd7e4: DB4: SW4 / ST_PENT
+	--   rd7e3: DB3: SW3 / Graphic
+	--   rd7e2: DB2: SW2 / Турбо
+	--   rd7e1: DB1: SW1 / SCR
+	--   rd7e0: DB0 при чтении #78FD / #7EFD: SW0 / BLKPK1
+	IF sel_78fd THEN rd7e7 = brd1; ELSE rd7e7 = brd2; END IF;
+	IF !sel_78fd THEN rd7e6 = ml_zero; ELSE rd7e6 = sw6; END IF;
+	rd7e5 = (sw5 & sel_78fd)
+		# blkext;
+	IF !sel_78fd THEN rd7e4 = st_pent; ELSE rd7e4 = sw4; END IF;
+	IF !sel_78fd THEN rd7e3 = ml_gfx; ELSE rd7e3 = sw3; END IF;
+	IF !sel_78fd THEN rd7e2 = ml_turbo; ELSE rd7e2 = sw2; END IF;
+	IF !sel_78fd THEN rd7e1 = ml_scr; ELSE rd7e1 = sw1; END IF;
+	IF !sel_78fd THEN rd7e0 = ml_blkpk1; ELSE rd7e0 = sw0; END IF;
+
+	-- db_out[7..0]: данные, выдаваемые FPGA на шину DB
+	--   db_out7: данные на DB7
+	--   db_out6: данные на DB6
+	--   db_out5: данные на DB5
+	--   db_out4: данные на DB4
+	--   db_out3: данные на DB3
+	--   db_out2: данные на DB2
+	--   db_out1: данные на DB1
+	--   db_out0: данные на DB0
+	IF !sel_78fd & !sel_7efd THEN
+		db_out[] = rd7a[];
+	ELSE
+		db_out[] = rd7e[];
+	END IF;
+
+	-- выходы модуля
+	o_rd_ff = rd_ff;
+	o_iowr_go_n = iowr_go_n;
+	o_port_wr_clk = port_wr_clk;
+	o_a8_buf = a8_buf;
+	o_a9_buf = a9_buf;
+	o_a10_buf = a10_buf;
+	o_a11_buf = a11_buf;
+	o_a12_buf = a12_buf;
+	o_a14_buf = a14_buf;
+	o_a15_buf = a15_buf;
+	o_sel_78fd = sel_78fd;
+	o_sel_7efd = sel_7efd;
+	o_db_oe = db_oe;
+	o_wr7ffd_n = wr7ffd_n;
+	o_wrdffd_n = wrdffd_n;
+	o_sel00_n = sel00_n;
+	o_wr_mb_n = wr_mb_n;
+	o_db_out[] = db_out[];
+END;

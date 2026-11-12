@@ -1,0 +1,262 @@
+-- cpu_io: Интерфейс Z80: дешифрация портов, строб записи, чтение портов на шину DB, WR на системную плату
+-- Схема GMX "Scorpion", FPGA EPF8452ALC84.
+SUBDESIGN cpu_io
+(
+	A[15..0],
+	IORQ_n,
+	M1,
+	MD[7..0],
+	RD_n,
+	cpu_clk,
+	turbo,
+	blkpk1,
+	trdos,
+	mag_dis,
+	sw[6..0],
+	blkext,
+	blkex2,
+	st_pent,
+	brd[2..0],
+	dos_act,
+	ml_sys[3..0],
+	ml_sm[2..0],
+	ml_blkpk1,
+	ml_scr,
+	ml_turbo,
+	ml_gfx,
+	ml_blk1,
+	h[8..0]	: INPUT;
+	o_port_wr_clk,
+	o_a9_buf,
+	o_a14_buf,
+	o_sel_7efd,
+	o_sel_7afd,
+	o_sel_78fd,
+	o_sel_7cfd_n,
+	o_wr7ffd_n,
+	o_wr1ffd_n,
+	o_wrdffd_n,
+	o_sel_ula,
+	o_sel00_n,
+	o_rd_ff,
+	o_db_oe,
+	o_wr_mb_n,
+	o_db_out[7..0]	: OUTPUT;
+)
+VARIABLE
+	io_a0             : LCELL;	-- цикл IORQ (не INTA) с A0=1
+	io_wr             : LCELL;	-- цикл записи в порт: IORQ, нет RD, не INTA (WR в FPGA не заведён)
+	iowr_d[4..1]      : DFF;	-- задержка цикла записи в порт по такту Z80
+	iowr_tap          : LCELL;	-- выбор ступени задержки (турбо/норма)
+	port_wr_clk       : LCELL;	-- строб записи во все регистры портов GMX
+	io_fd             : LCELL;	-- адрес порта ...FD: A0=1, A1=0, A5=1
+	io_fd_a15lo       : LCELL;	-- порт ...FD при A15=0 (#7FFD, #1FFD, #7xFD)
+	sel_7xfd          : LCELL;	-- #7xFD (A15=0, A14=1, A8=0) и расширенные порты не заблокированы (BLKEXT=0)
+	a9_buf            : LCELL;	-- буфер A9
+	a14_buf           : LCELL;	-- буфер A14
+	sel_7efd          : LCELL;	-- выборка #7EFD (A10=1, A9=1)
+	sel_7afd          : LCELL;	-- выборка #7AFD (A10=0, A9=1)
+	sel_78fd          : LCELL;	-- выборка #78FD (A10=0, A9=0)
+	sel_7cfd_n        : LCELL;	-- выборка #7CFD (A10=1, A9=0), активный 0
+	sel_7e78          : LCELL;	-- выборка #7EFD или #78FD
+	p7ffd_dec_blk     : LCELL;	-- #7FFD не выбирается: A14=0 или (A8=0 и BLKEXT=0), если не BLKEX2
+	wr7ffd_n          : LCELL;	-- запись в #7FFD разрешена (0); блокируется BLKPK1, если Magic не запрещена
+	wr1ffd_n          : LCELL;	-- запись в #1FFD (A15=0, A14=0, A8=1, не BLKEX2), активный 0
+	wrdffd_n          : LCELL;	-- запись в #DFFD (A15=1, A13=0, не BLKEXT), активный 0
+	a_7432            : LCELL;	-- A7 & A4 & A3 & A2 (часть дешифрации #FF)
+	sel_ula           : LCELL;	-- A1=1, A5=1 и не теневой режим (TRDOS xnor dos_act): порты #FE/#FF
+	sel00_n           : LCELL;	-- порт xx00 (A0=A1=A5=0, не теневой режим), активный 0
+	rd_ff             : LCELL;	-- чтение порта #FF (атрибуты/плавающая шина)
+	db_oe             : LCELL;	-- FPGA выдаёт данные на DB: чтение #7EFD, #78FD, #7AFD или #FF
+	wr_mb_n           : LCELL;	-- WR на материнскую плату (WROUT/): строб записи, кроме портов GMX
+	ffb[7..0]         : DFF;	-- байт MD, защёлкнутый по h2 для чтения порта #FF (плавающая шина)
+	rd7a[7..0]        : LCELL;	-- данные при чтении #FF / #7AFD
+	rd7e[7..0]        : LCELL;	-- данные при чтении #78FD / #7EFD
+	db_out[7..0]      : LCELL;	-- данные, выдаваемые FPGA на шину DB
+BEGIN
+
+	-- io_a0: цикл IORQ (не INTA) с A0=1
+	io_a0 = !IORQ_n & A0 & M1;
+
+	-- io_wr: цикл записи в порт: IORQ, нет RD, не INTA (WR в FPGA не заведён)
+	io_wr = RD_n & !IORQ_n & M1;
+
+	-- iowr_d[4..1]: задержка цикла записи в порт по такту Z80
+	--   iowr_d4: ступень 4
+	--   iowr_d3: ступень 3
+	--   iowr_d2: ступень 2
+	--   iowr_d1: задержка io_wr по такту Z80, ступень 1
+	iowr_d[].clk = cpu_clk;
+	iowr_d2.clrn = io_wr;
+	iowr_d1.clrn = io_wr;
+	iowr_d[].d = (iowr_d[3..1], VCC);
+
+	-- iowr_tap: выбор ступени задержки (турбо/норма)
+	IF !turbo THEN iowr_tap = iowr_d3; ELSE iowr_tap = iowr_d4; END IF;
+
+	-- port_wr_clk: строб записи во все регистры портов GMX
+	port_wr_clk = (!iowr_d1 & !iowr_d2)
+		# iowr_tap;
+
+	-- io_fd: адрес порта ...FD: A0=1, A1=0, A5=1
+	io_fd = A5 & !A1 & io_a0;
+
+	-- io_fd_a15lo: порт ...FD при A15=0 (#7FFD, #1FFD, #7xFD)
+	io_fd_a15lo = !A15 & io_fd;
+
+	-- sel_7xfd: #7xFD (A15=0, A14=1, A8=0) и расширенные порты не заблокированы (BLKEXT=0)
+	sel_7xfd = !A8 & a14_buf & io_fd_a15lo & !blkext;
+
+	-- a9_buf: буфер A9
+	a9_buf = A9;
+
+	-- a14_buf: буфер A14
+	a14_buf = A14;
+
+	-- sel_7efd: выборка #7EFD (A10=1, A9=1)
+	sel_7efd = A10 & a9_buf & sel_7xfd;
+
+	-- sel_7afd: выборка #7AFD (A10=0, A9=1)
+	sel_7afd = !A10 & a9_buf & sel_7xfd;
+
+	-- sel_78fd: выборка #78FD (A10=0, A9=0)
+	sel_78fd = !A10 & !a9_buf & sel_7xfd;
+
+	-- sel_7cfd_n: выборка #7CFD (A10=1, A9=0), активный 0
+	sel_7cfd_n = !sel_7xfd
+		# !A10
+		# a9_buf;
+
+	-- sel_7e78: выборка #7EFD или #78FD
+	sel_7e78 = sel_7efd
+		# sel_78fd;
+
+	-- p7ffd_dec_blk: #7FFD не выбирается: A14=0 или (A8=0 и BLKEXT=0), если не BLKEX2
+	p7ffd_dec_blk = (!A8 & !blkex2 & !blkext)
+		# (!a14_buf & !blkex2);
+
+	-- wr7ffd_n: запись в #7FFD разрешена (0); блокируется BLKPK1, если Magic не запрещена
+	wr7ffd_n = !io_fd_a15lo
+		# (blkpk1 & !mag_dis)
+		# p7ffd_dec_blk;
+
+	-- wr1ffd_n: запись в #1FFD (A15=0, A14=0, A8=1, не BLKEX2), активный 0
+	wr1ffd_n = !io_fd_a15lo
+		# !A8
+		# a14_buf
+		# blkex2;
+
+	-- wrdffd_n: запись в #DFFD (A15=1, A13=0, не BLKEXT), активный 0
+	wrdffd_n = !io_fd
+		# !A15
+		# A13
+		# blkext;
+
+	-- a_7432: A7 & A4 & A3 & A2 (часть дешифрации #FF)
+	a_7432 = A7 & A4 & A2 & A3;
+
+	-- sel_ula: A1=1, A5=1 и не теневой режим (TRDOS xnor dos_act): порты #FE/#FF
+	sel_ula = (A5 & A1 & !trdos & !dos_act)
+		# (A5 & A1 & trdos & dos_act);
+
+	-- sel00_n: порт xx00 (A0=A1=A5=0, не теневой режим), активный 0
+	sel00_n = A5
+		# A1
+		# (trdos & !dos_act)
+		# (!trdos & dos_act);
+
+	-- rd_ff: чтение порта #FF (атрибуты/плавающая шина)
+	rd_ff = A6 & a_7432 & io_a0 & sel_ula;
+
+	-- db_oe: FPGA выдаёт данные на DB: чтение #7EFD, #78FD, #7AFD или #FF
+	db_oe = (!RD_n & sel_7afd)
+		# (!RD_n & sel_7e78)
+		# (!RD_n & rd_ff);
+
+	-- wr_mb_n: WR на материнскую плату (WROUT/): строб записи, кроме портов GMX
+	wr_mb_n = (!io_wr & port_wr_clk)
+		# (A6 & port_wr_clk)
+		# sel_7xfd;
+
+	-- ffb[7..0]: байт MD, защёлкнутый по h2 для чтения порта #FF (плавающая шина)
+	--   ffb7: MD7 для чтения #FF
+	--   ffb6: MD6 для чтения #FF
+	--   ffb5: MD5 для чтения #FF
+	--   ffb4: MD4 для чтения #FF
+	--   ffb3: MD3 для чтения #FF
+	--   ffb2: MD2 для чтения #FF
+	--   ffb1: MD1, защёлкнутый для чтения #FF
+	--   ffb0: MD0 для чтения #FF
+	ffb[].clk = !h2;
+	ffb[].d = MD[];
+
+	-- rd7a[7..0]: данные при чтении #FF / #7AFD
+	--   rd7a7: DB7: ffb7 / BRD0
+	--   rd7a6: DB6: ffb6 / SM2
+	--   rd7a5: DB5: ffb5 / SM1
+	--   rd7a4: DB4: ffb4 / SM0
+	--   rd7a3: DB3: ffb3 / SYS3
+	--   rd7a2: DB2: ffb2 / SYS2
+	--   rd7a1: DB1: ffb1 / SYS1
+	--   rd7a0: DB0 при чтении #FF / #7AFD: ffb0 / SYS0
+	IF !rd_ff THEN rd7a7 = brd0; ELSE rd7a7 = ffb7; END IF;
+	IF rd_ff THEN rd7a6 = ffb6; ELSE rd7a6 = ml_sm2; END IF;
+	IF rd_ff THEN rd7a5 = ffb5; ELSE rd7a5 = ml_sm1; END IF;
+	IF rd_ff THEN rd7a4 = ffb4; ELSE rd7a4 = ml_sm0; END IF;
+	IF rd_ff THEN rd7a3 = ffb3; ELSE rd7a3 = ml_sys3; END IF;
+	IF rd_ff THEN rd7a2 = ffb2; ELSE rd7a2 = ml_sys2; END IF;
+	IF rd_ff THEN rd7a1 = ffb1; ELSE rd7a1 = ml_sys1; END IF;
+	IF rd_ff THEN rd7a0 = ffb0; ELSE rd7a0 = ml_sys0; END IF;
+
+	-- rd7e[7..0]: данные при чтении #78FD / #7EFD
+	--   rd7e7: DB7: BRD1 / BRD2
+	--   rd7e6: DB6: SW6 / BLK1
+	--   rd7e5: DB5: SW5 / BLKEXT
+	--   rd7e4: DB4: SW4 / ST_PENT
+	--   rd7e3: DB3: SW3 / Graphic
+	--   rd7e2: DB2: SW2 / Турбо
+	--   rd7e1: DB1: SW1 / SCR
+	--   rd7e0: DB0 при чтении #78FD / #7EFD: SW0 / BLKPK1
+	IF sel_78fd THEN rd7e7 = brd1; ELSE rd7e7 = brd2; END IF;
+	IF !sel_78fd THEN rd7e6 = ml_blk1; ELSE rd7e6 = sw6; END IF;
+	rd7e5 = (sw5 & sel_78fd)
+		# blkext;
+	IF !sel_78fd THEN rd7e4 = st_pent; ELSE rd7e4 = sw4; END IF;
+	IF !sel_78fd THEN rd7e3 = ml_gfx; ELSE rd7e3 = sw3; END IF;
+	IF !sel_78fd THEN rd7e2 = ml_turbo; ELSE rd7e2 = sw2; END IF;
+	IF !sel_78fd THEN rd7e1 = ml_scr; ELSE rd7e1 = sw1; END IF;
+	IF !sel_78fd THEN rd7e0 = ml_blkpk1; ELSE rd7e0 = sw0; END IF;
+
+	-- db_out[7..0]: данные, выдаваемые FPGA на шину DB
+	--   db_out7: данные на DB7
+	--   db_out6: данные на DB6
+	--   db_out5: данные на DB5
+	--   db_out4: данные на DB4
+	--   db_out3: данные на DB3
+	--   db_out2: данные на DB2
+	--   db_out1: данные на DB1
+	--   db_out0: данные на DB0
+	IF !sel_78fd & !sel_7efd THEN
+		db_out[] = rd7a[];
+	ELSE
+		db_out[] = rd7e[];
+	END IF;
+
+	-- выходы модуля
+	o_port_wr_clk = port_wr_clk;
+	o_a9_buf = a9_buf;
+	o_a14_buf = a14_buf;
+	o_sel_7efd = sel_7efd;
+	o_sel_7afd = sel_7afd;
+	o_sel_78fd = sel_78fd;
+	o_sel_7cfd_n = sel_7cfd_n;
+	o_wr7ffd_n = wr7ffd_n;
+	o_wr1ffd_n = wr1ffd_n;
+	o_wrdffd_n = wrdffd_n;
+	o_sel_ula = sel_ula;
+	o_sel00_n = sel00_n;
+	o_rd_ff = rd_ff;
+	o_db_oe = db_oe;
+	o_wr_mb_n = wr_mb_n;
+	o_db_out[] = db_out[];
+END;

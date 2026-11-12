@@ -1,0 +1,1711 @@
+-- scorpion: нетлист схемы FPGA GMX "Scorpion" (EPF8452ALC84), одна ячейка на узел.
+-- Узел lcK_<ряд><столбец> соответствует ячейке LCK_<РЯД><столбец>.
+SUBDESIGN scorpion
+(
+	G : OUTPUT;	-- pin 1 (G)
+	DB7 : BIDIR;	-- pin 2 (DB7)
+	R : OUTPUT;	-- pin 3 (R)
+	DB6 : BIDIR;	-- pin 4 (DB6)
+	DB5 : BIDIR;	-- pin 6 (DB5)
+	DB4 : BIDIR;	-- pin 7 (DB4)
+	DB3 : BIDIR;	-- pin 8 (DB3)
+	DB2 : BIDIR;	-- pin 9 (DB2)
+	p14M : INPUT;	-- pin 12 (14M)
+	DB1 : BIDIR;	-- pin 13 (DB1)
+	DB0 : BIDIR;	-- pin 14 (DB0)
+	MA0 : OUTPUT;	-- pin 15 (MA0)
+	MA1 : OUTPUT;	-- pin 16 (MA1)
+	MA2 : OUTPUT;	-- pin 18 (MA2)
+	MA3 : OUTPUT;	-- pin 19 (MA3)
+	MA4 : OUTPUT;	-- pin 20 (MA4)
+	MA5 : OUTPUT;	-- pin 21 (MA5)
+	MA6 : OUTPUT;	-- pin 22 (MA6)
+	MA7 : OUTPUT;	-- pin 23 (MA7)
+	MA8 : OUTPUT;	-- pin 24 (MA8)
+	MA9 : OUTPUT;	-- pin 25 (MA9)
+	RAS_n : OUTPUT;	-- pin 27 (RAS/)
+	CAS0_n : OUTPUT;	-- pin 28 (CAS0/)
+	CAS1 : OUTPUT;	-- pin 29 (CAS1)
+	WE_n : OUTPUT;	-- pin 30 (WE/)
+	MD1 : INPUT;	-- pin 31 (MD1)
+	MD2 : INPUT;	-- pin 34 (MD2)
+	MD3 : INPUT;	-- pin 35 (MD3)
+	MD4 : INPUT;	-- pin 36 (MD4)
+	MD5 : INPUT;	-- pin 37 (MD5)
+	MD6 : INPUT;	-- pin 39 (MD6)
+	MD0 : INPUT;	-- pin 40 (MD0)
+	WAIT_n : OUTPUT;	-- pin 41 (WAIT/)
+	RD_n : INPUT;	-- pin 42 (RD/)
+	IORQ_n : INPUT;	-- pin 43 (IORQ/)
+	M1 : INPUT;	-- pin 44 (M1)
+	MG : INPUT;	-- pin 45 (MG)
+	MREQ_n : INPUT;	-- pin 46 (MREQ/)
+	RAM_n : OUTPUT;	-- pin 48 (RAM/)
+	CLKCPU : OUTPUT;	-- pin 49 (CLKCPU)
+	EBUF : OUTPUT;	-- pin 50 (EBUF)
+	INT : OUTPUT;	-- pin 51 (INT)
+	MD7 : INPUT;	-- pin 54 (MD7)
+	TRBB : BIDIR;	-- pin 55 (TRBB)
+	A15 : INPUT;	-- pin 56 (A15)
+	A14 : INPUT;	-- pin 57 (A14)
+	WRBUF : OUTPUT;	-- pin 58 (WRBUF)
+	A12 : INPUT;	-- pin 60 (A12)
+	A11 : INPUT;	-- pin 61 (A11)
+	A10 : INPUT;	-- pin 62 (A10)
+	A9 : INPUT;	-- pin 63 (A9)
+	A8 : INPUT;	-- pin 64 (A8)
+	A7 : INPUT;	-- pin 65 (A7)
+	A6 : INPUT;	-- pin 66 (A6)
+	A5 : INPUT;	-- pin 67 (A5)
+	A4 : INPUT;	-- pin 69 (A4)
+	A3 : INPUT;	-- pin 70 (A3)
+	A2 : INPUT;	-- pin 71 (A2)
+	A1 : INPUT;	-- pin 72 (A1)
+	RESET : INPUT;	-- pin 73 (RESET)
+	A0 : INPUT;	-- pin 76 (A0)
+	A13 : INPUT;	-- pin 77 (A13)
+	RDR_n : OUTPUT;	-- pin 78 (RDR/)
+	WROUT_n : OUTPUT;	-- pin 79 (WROUT/)
+	VS : OUTPUT;	-- pin 81 (VS)
+	SYNC : OUTPUT;	-- pin 82 (SYNC)
+	I : OUTPUT;	-- pin 83 (I)
+	B : OUTPUT	-- pin 84 (B)
+)
+VARIABLE
+	DB7_tri : TRI;
+	DB6_tri : TRI;
+	DB5_tri : TRI;
+	DB4_tri : TRI;
+	DB3_tri : TRI;
+	DB2_tri : TRI;
+	DB1_tri : TRI;
+	DB0_tri : TRI;
+	TRBB_tri : TRI;
+	lc1_a1 : DFF;
+	lc2_a1 : LCELL;
+	lc3_a1 : DFF;
+	lc4_a1 : DFF;
+	lc5_a1 : DFF;
+	lc6_a1 : DFF;
+	lc7_a1 : DFF;
+	lc8_a1 : LCELL;
+	lc1_a2 : LCELL;
+	lc2_a2 : LCELL;
+	lc3_a2 : LCELL;
+	lc4_a2 : LCELL;
+	lc5_a2 : LCELL;
+	lc6_a2 : LCELL;
+	lc7_a2 : LCELL;
+	lc8_a2 : DFF;
+	lc1_a3 : DFF;
+	lc3_a3 : DFF;
+	lc4_a3 : DFF;
+	lc5_a3 : DFF;
+	lc6_a3 : DFF;
+	lc7_a3 : DFF;
+	lc8_a3 : DFF;
+	lc1_a4 : LCELL;
+	lc2_a4 : DFF;
+	lc3_a4 : LCELL;
+	lc4_a4 : DFF;
+	lc5_a4 : LCELL;
+	lc6_a4 : LCELL;
+	lc7_a4 : LCELL;
+	lc8_a4 : LCELL;
+	lc1_a5 : LCELL;
+	lc2_a5 : DFF;
+	lc3_a5 : LCELL;
+	lc4_a5 : LCELL;
+	lc5_a5 : LCELL;
+	lc6_a5 : LCELL;
+	lc7_a5 : LCELL;
+	lc8_a5 : LCELL;
+	lc1_a6 : LCELL;
+	lc2_a6 : DFF;
+	lc3_a6 : LCELL;
+	lc4_a6 : LCELL;
+	lc5_a6 : DFF;
+	lc6_a6 : LCELL;
+	lc7_a6 : LCELL;
+	lc1_a7 : LCELL;
+	lc2_a7 : LCELL;
+	lc3_a7 : DFF;
+	lc4_a7 : LCELL;
+	lc5_a7 : DFF;
+	lc6_a7 : LCELL;
+	lc7_a7 : LCELL;
+	lc8_a7 : LCELL;
+	lc1_a8 : LCELL;
+	lc2_a8 : LCELL;
+	lc3_a8 : DFF;
+	lc4_a8 : LCELL;
+	lc5_a8 : LCELL;
+	lc6_a8 : LCELL;
+	lc7_a8 : LCELL;
+	lc1_a9 : LCELL;
+	lc2_a9 : LCELL;
+	lc3_a9 : LCELL;
+	lc4_a9 : LCELL;
+	lc5_a9 : LCELL;
+	lc6_a9 : LCELL;
+	lc8_a9 : DFF;
+	lc1_a10 : LCELL;
+	lc2_a10 : DFF;
+	lc3_a10 : DFF;
+	lc4_a10 : DFF;
+	lc5_a10 : LCELL;
+	lc6_a10 : DFF;
+	lc7_a10 : DFF;
+	lc8_a10 : LCELL;
+	lc1_a11 : LCELL;
+	lc2_a11 : LCELL;
+	lc3_a11 : LCELL;
+	lc4_a11 : LCELL;
+	lc5_a11 : DFF;
+	lc6_a11 : LCELL;
+	lc7_a11 : LCELL;
+	lc8_a11 : LCELL;
+	lc1_a12 : DFF;
+	lc2_a12 : DFF;
+	lc3_a12 : DFF;
+	lc4_a12 : DFF;
+	lc5_a12 : DFF;
+	lc6_a12 : DFF;
+	lc7_a12 : LCELL;
+	lc8_a12 : DFF;
+	lc1_a13 : LCELL;
+	lc2_a13 : LCELL;
+	lc3_a13 : LCELL;
+	lc4_a13 : DFF;
+	lc5_a13 : LCELL;
+	lc6_a13 : LCELL;
+	lc7_a13 : LCELL;
+	lc8_a13 : LCELL;
+	lc1_a14 : DFF;
+	lc2_a14 : LCELL;
+	lc3_a14 : LCELL;
+	lc4_a14 : LCELL;
+	lc5_a14 : LCELL;
+	lc6_a14 : LCELL;
+	lc7_a14 : DFF;
+	lc8_a14 : LCELL;
+	lc1_a15 : LCELL;
+	lc2_a15 : DFF;
+	lc3_a15 : LCELL;
+	lc4_a15 : LCELL;
+	lc5_a15 : LCELL;
+	lc6_a15 : LCELL;
+	lc7_a15 : LCELL;
+	lc8_a15 : LCELL;
+	lc1_a16 : LCELL;
+	lc2_a16 : DFF;
+	lc3_a16 : DFF;
+	lc4_a16 : LCELL;
+	lc5_a16 : LCELL;
+	lc6_a16 : LCELL;
+	lc7_a16 : LCELL;
+	lc8_a16 : LCELL;
+	lc1_a17 : LCELL;
+	lc2_a17 : LCELL;
+	lc3_a17 : LCELL;
+	lc4_a17 : LCELL;
+	lc5_a17 : LCELL;
+	lc6_a17 : LCELL;
+	lc7_a17 : LCELL;
+	lc8_a17 : DFF;
+	lc1_a18 : LCELL;
+	lc2_a18 : DFF;
+	lc3_a18 : DFF;
+	lc4_a18 : DFF;
+	lc5_a18 : DFF;
+	lc6_a18 : DFF;
+	lc7_a18 : DFF;
+	lc8_a18 : DFF;
+	lc1_a19 : LCELL;
+	lc2_a19 : LCELL;
+	lc3_a19 : DFF;
+	lc4_a19 : LCELL;
+	lc5_a19 : DFF;
+	lc6_a19 : DFF;
+	lc7_a19 : DFF;
+	lc8_a19 : DFF;
+	lc1_a20 : DFF;
+	lc2_a20 : LCELL;
+	lc3_a20 : DFF;
+	lc4_a20 : DFF;
+	lc5_a20 : LCELL;
+	lc6_a20 : DFF;
+	lc7_a20 : DFF;
+	lc8_a20 : DFF;
+	lc1_a21 : LCELL;
+	lc2_a21 : LCELL;
+	lc3_a21 : LCELL;
+	lc4_a21 : LCELL;
+	lc5_a21 : LCELL;
+	lc6_a21 : LCELL;
+	lc7_a21 : LCELL;
+	lc8_a21 : DFF;
+	lc1_b1 : DFF;
+	lc2_b1 : LCELL;
+	lc3_b1 : LCELL;
+	lc4_b1 : LCELL;
+	lc5_b1 : LCELL;
+	lc6_b1 : LCELL;
+	lc7_b1 : DFF;
+	lc8_b1 : LCELL;
+	lc1_b2 : LCELL;
+	lc2_b2 : LCELL;
+	lc3_b2 : LCELL;
+	lc4_b2 : LCELL;
+	lc5_b2 : DFF;
+	lc6_b2 : LCELL;
+	lc7_b2 : LCELL;
+	lc8_b2 : LCELL;
+	lc1_b3 : LCELL;
+	lc2_b3 : DFF;
+	lc3_b3 : DFF;
+	lc4_b3 : DFF;
+	lc5_b3 : DFF;
+	lc6_b3 : DFF;
+	lc7_b3 : DFF;
+	lc8_b3 : LCELL;
+	lc1_b4 : DFF;
+	lc2_b4 : DFF;
+	lc3_b4 : DFF;
+	lc4_b4 : LCELL;
+	lc5_b4 : LCELL;
+	lc6_b4 : LCELL;
+	lc7_b4 : LCELL;
+	lc8_b4 : LCELL;
+	lc1_b5 : LCELL;
+	lc2_b5 : LCELL;
+	lc3_b5 : DFF;
+	lc4_b5 : LCELL;
+	lc5_b5 : LCELL;
+	lc6_b5 : DFF;
+	lc7_b5 : LCELL;
+	lc8_b5 : LCELL;
+	lc1_b6 : LCELL;
+	lc2_b6 : DFF;
+	lc3_b6 : DFF;
+	lc4_b6 : DFF;
+	lc5_b6 : DFF;
+	lc6_b6 : LCELL;
+	lc8_b6 : DFF;
+	lc1_b7 : LCELL;
+	lc2_b7 : DFF;
+	lc3_b7 : LCELL;
+	lc4_b7 : DFF;
+	lc5_b7 : LCELL;
+	lc6_b7 : LCELL;
+	lc7_b7 : DFF;
+	lc8_b7 : LCELL;
+	lc1_b8 : LCELL;
+	lc2_b8 : DFF;
+	lc3_b8 : DFF;
+	lc4_b8 : DFF;
+	lc5_b8 : DFF;
+	lc6_b8 : DFF;
+	lc7_b8 : DFF;
+	lc8_b8 : DFF;
+	lc1_b9 : LCELL;
+	lc2_b9 : LCELL;
+	lc3_b9 : LCELL;
+	lc4_b9 : LCELL;
+	lc5_b9 : DFF;
+	lc6_b9 : LCELL;
+	lc7_b9 : LCELL;
+	lc8_b9 : LCELL;
+	lc1_b10 : LCELL;
+	lc2_b10 : LCELL;
+	lc3_b10 : DFF;
+	lc4_b10 : DFF;
+	lc5_b10 : LCELL;
+	lc6_b10 : LCELL;
+	lc7_b10 : LCELL;
+	lc8_b10 : DFF;
+	lc1_b11 : LCELL;
+	lc2_b11 : LCELL;
+	lc3_b11 : DFF;
+	lc4_b11 : DFF;
+	lc5_b11 : DFF;
+	lc6_b11 : DFF;
+	lc7_b11 : DFF;
+	lc8_b11 : DFF;
+	lc1_b12 : LCELL;
+	lc2_b12 : LCELL;
+	lc3_b12 : DFF;
+	lc4_b12 : DFF;
+	lc5_b12 : DFF;
+	lc6_b12 : DFF;
+	lc7_b12 : LCELL;
+	lc8_b12 : DFF;
+	lc1_b13 : DFF;
+	lc2_b13 : LCELL;
+	lc3_b13 : DFF;
+	lc4_b13 : DFF;
+	lc5_b13 : LCELL;
+	lc6_b13 : DFF;
+	lc7_b13 : LCELL;
+	lc8_b13 : LCELL;
+	lc1_b14 : LCELL;
+	lc2_b14 : DFF;
+	lc3_b14 : LCELL;
+	lc4_b14 : LCELL;
+	lc5_b14 : LCELL;
+	lc6_b14 : DFF;
+	lc7_b14 : LCELL;
+	lc8_b14 : LCELL;
+	lc1_b15 : LCELL;
+	lc2_b15 : LCELL;
+	lc3_b15 : LCELL;
+	lc4_b15 : LCELL;
+	lc5_b15 : DFF;
+	lc6_b15 : LCELL;
+	lc7_b15 : LCELL;
+	lc8_b15 : LCELL;
+	lc1_b16 : DFF;
+	lc2_b16 : DFF;
+	lc3_b16 : LCELL;
+	lc4_b16 : LCELL;
+	lc5_b16 : DFF;
+	lc6_b16 : DFF;
+	lc7_b16 : DFF;
+	lc8_b16 : LCELL;
+	lc1_b17 : LCELL;
+	lc2_b17 : LCELL;
+	lc3_b17 : DFF;
+	lc4_b17 : LCELL;
+	lc5_b17 : LCELL;
+	lc6_b17 : LCELL;
+	lc7_b17 : LCELL;
+	lc1_b18 : DFF;
+	lc2_b18 : DFF;
+	lc3_b18 : DFF;
+	lc4_b18 : LCELL;
+	lc5_b18 : DFF;
+	lc6_b18 : DFF;
+	lc7_b18 : DFF;
+	lc8_b18 : DFF;
+	lc1_b19 : DFF;
+	lc2_b19 : LCELL;
+	lc3_b19 : DFF;
+	lc4_b19 : LCELL;
+	lc5_b19 : LCELL;
+	lc6_b19 : DFF;
+	lc8_b19 : DFF;
+	lc1_b20 : DFF;
+	lc2_b20 : LCELL;
+	lc3_b20 : DFF;
+	lc4_b20 : LCELL;
+	lc5_b20 : LCELL;
+	lc6_b20 : LCELL;
+	lc7_b20 : DFF;
+	lc8_b20 : LCELL;
+	lc1_b21 : LCELL;
+	lc2_b21 : DFF;
+	lc3_b21 : LCELL;
+	lc4_b21 : DFF;
+	lc5_b21 : LCELL;
+	lc6_b21 : LCELL;
+	lc7_b21 : LCELL;
+BEGIN
+	G = lc1_b11;	-- pin 1 VIO40, slow slew
+	DB7_tri.in = lc1_a10;
+	DB7_tri.oe = lc1_b2;	-- OE via peripheral line POE1
+	DB7 = DB7_tri.out;	-- pin 2 VIO36, slow slew
+	R = lc1_b8;	-- pin 3 VIO28, slow slew
+	DB6_tri.in = lc1_b7;
+	DB6_tri.oe = lc1_b2;	-- OE via peripheral line POE1
+	DB6 = DB6_tri.out;	-- pin 4 VIO24, slow slew
+	DB5_tri.in = lc1_a6;
+	DB5_tri.oe = lc1_b2;	-- OE via peripheral line POE1
+	DB5 = DB5_tri.out;	-- pin 6 VIO20, slow slew
+	DB4_tri.in = lc1_a4;
+	DB4_tri.oe = lc1_b2;	-- OE via peripheral line POE1
+	DB4 = DB4_tri.out;	-- pin 7 VIO12, slow slew
+	DB3_tri.in = lc1_b3;
+	DB3_tri.oe = lc1_b2;	-- OE via peripheral line POE1
+	DB3 = DB3_tri.out;	-- pin 8 VIO8, slow slew
+	DB2_tri.in = lc3_b2;
+	DB2_tri.oe = lc1_b2;	-- OE via peripheral line POE1
+	DB2 = DB2_tri.out;	-- pin 9 VIO4, slow slew
+	DB1_tri.in = lc1_a21;
+	DB1_tri.oe = lc1_b2;	-- OE via peripheral line POE1
+	DB1 = DB1_tri.out;	-- pin 13 HIO0, slow slew
+	DB0_tri.in = lc2_a17;
+	DB0_tri.oe = lc1_b2;	-- OE via peripheral line POE1
+	DB0 = DB0_tri.out;	-- pin 14 HIO2, slow slew
+	MA0 = lc4_a14;	-- pin 15 HIO4, slow slew
+	MA1 = lc2_a7;	-- pin 16 HIO6, slow slew
+	MA2 = lc8_a16;	-- pin 18 HIO8, slow slew
+	MA3 = lc6_a16;	-- pin 19 HIO10, slow slew
+	MA4 = lc5_a5;	-- pin 20 HIO12, slow slew
+	MA5 = lc8_a14;	-- pin 21 HIO14, slow slew
+	MA6 = lc2_b15;	-- pin 22 HIO16, slow slew
+	MA7 = lc2_b5;	-- pin 23 HIO18, slow slew
+	MA8 = lc4_b1;	-- pin 24 HIO20, slow slew
+	MA9 = lc2_b1;	-- pin 25 HIO22, slow slew
+	RAS_n = lc6_b19;	-- pin 27 HIO24, slow slew
+	CAS0_n = lc5_b10;	-- pin 28 HIO26, slow slew
+	CAS1 = lc5_b20;	-- pin 29 HIO28, slow slew
+	WE_n = !lc8_b10;	-- pin 30 HIO30, slow slew
+	WAIT_n = lc8_b9;	-- pin 41 VIO35, slow slew
+	RAM_n = !lc1_b17;	-- pin 48 VIO67, slow slew
+	CLKCPU = !lc4_b19;	-- pin 49 VIO75, slow slew
+	EBUF = lc2_b20;	-- pin 50 VIO79, slow slew
+	INT = !lc2_b21;	-- pin 51 VIO83, slow slew
+	TRBB_tri.in = lc8_b19;
+	TRBB_tri.oe = lc1_b21;	-- OE via peripheral line PCLK1
+	TRBB = TRBB_tri.out;	-- pin 55 HIO31, slow slew
+	WRBUF = !lc8_b20;	-- pin 58 HIO25, slow slew
+	RDR_n = lc2_a19;	-- pin 78 VIO72, slow slew
+	WROUT_n = lc1_a18;	-- pin 79 VIO68, slow slew
+	VS = !lc1_b16;	-- pin 81 VIO60, slow slew
+	SYNC = lc1_b15;	-- pin 82 VIO56, slow slew
+	I = lc1_b14;	-- pin 83 VIO52, slow slew
+	B = lc1_b12;	-- pin 84 VIO44, slow slew
+	-- LC1_A1 LUT AAAA
+	lc1_a1.d = MD1;
+	lc1_a1.clk = !lc3_b20;
+	-- LC2_A1 LUT CFC0
+	lc2_a1 = (lc1_a1 & lc2_a8)
+		# (!lc2_a8 & lc8_a1);
+	-- LC3_A1 LUT FC0C
+	lc3_a1.d = (lc3_a1 & !lc3_b9)
+		# (lc3_b9 & DB7);
+	lc3_a1.clk = lc2_b12;
+	lc3_a1.clrn = RESET;
+	-- LC4_A1 LUT FC0C
+	lc4_a1.d = (lc4_a1 & !lc3_b9)
+		# (lc3_b9 & DB6);
+	lc4_a1.clk = lc2_b12;
+	lc4_a1.clrn = RESET;
+	-- LC5_A1 LUT AAAA
+	lc5_a1.d = MD5;
+	lc5_a1.clk = !lc3_b20;
+	-- LC6_A1 LUT AAAA
+	lc6_a1.d = MD0;
+	lc6_a1.clk = !lc3_b20;
+	-- LC7_A1 LUT AAAA
+	lc7_a1.d = MD4;
+	lc7_a1.clk = !lc3_b20;
+	-- LC8_A1 LUT F0CC
+	lc8_a1 = (lc5_a3 & !lc4_a4)
+		# (lc8_a1 & lc4_a4);
+	-- LC1_A2 LUT BFFF
+	lc1_a2 = !lc5_a11
+		# !lc4_a13
+		# !lc8_a21
+		# lc6_a11;
+	-- LC2_A2 LUT CFC0
+	lc2_a2 = (lc4_b9 & lc5_b14)
+		# (!lc5_b14 & lc5_a2);
+	-- LC3_A2 LUT CFC0
+	lc3_a2 = (A7 & lc5_b14)
+		# (!lc5_b14 & lc6_a2);
+	-- LC4_A2 LUT BFFF
+	lc4_a2 = !lc8_a9
+		# !lc3_a8
+		# !lc8_a2
+		# lc1_a2;
+	-- LC5_A2 LUT FC0C
+	lc5_a2 = (lc5_b13 & !lc6_a10)
+		# (lc6_a10 & lc5_a11);
+	-- LC6_A2 LUT FC0C
+	lc6_a2 = (lc5_b16 & !lc6_a10)
+		# (lc6_a10 & lc8_a21);
+	-- LC7_A2 LUT 3033
+	lc7_a2 = (!lc4_a12 & !lc1_b16)
+		# (!lc4_a12 & lc6_a18);
+	-- LC8_A2 LUT 00FF
+	lc8_a2.d = !lc8_a2;
+	lc8_a2.clk = lc1_a2;
+	lc8_a2.clrn = lc7_a2;
+	lc8_a2.prn = lc3_a11;
+	-- LC1_A3 LUT 00FF
+	lc1_a3.d = !lc1_a3;
+	lc1_a3.clk = lc5_a6;
+	-- LC3_A3 LUT FC0C
+	lc3_a3.d = (lc3_a3 & !lc7_b9)
+		# (lc7_b9 & DB1);
+	lc3_a3.clk = lc2_b12;
+	lc3_a3.clrn = RESET;
+	-- LC4_A3 LUT CFC0
+	lc4_a3.d = (lc4_a3 & lc5_a21)
+		# (!lc5_a21 & DB5);
+	lc4_a3.clk = lc2_b12;
+	lc4_a3.clrn = RESET;
+	-- LC5_A3 LUT F3C0
+	lc5_a3.d = (lc5_a21 & lc5_a3)
+		# (!lc5_a21 & DB1);
+	lc5_a3.clk = lc2_b12;
+	lc5_a3.clrn = RESET;
+	-- LC6_A3 LUT FC0C
+	lc6_a3.d = (lc6_a3 & !lc7_b9)
+		# (lc7_b9 & DB5);
+	lc6_a3.clk = lc2_b12;
+	lc6_a3.clrn = RESET;
+	-- LC7_A3 LUT FC0C
+	lc7_a3.d = (lc7_a3 & !lc3_b9)
+		# (lc3_b9 & DB5);
+	lc7_a3.clk = lc2_b12;
+	lc7_a3.clrn = RESET;
+	-- LC8_A3 LUT F3C0
+	lc8_a3.d = (lc5_a21 & lc8_a3)
+		# (!lc5_a21 & DB3);
+	lc8_a3.clk = lc2_b12;
+	lc8_a3.clrn = RESET;
+	-- LC1_A4 LUT ABA8
+	lc1_a4 = (lc8_a4 & lc2_b9)
+		# (lc8_a4 & lc7_b9)
+		# (!lc2_b9 & !lc7_b9 & lc7_a4);
+	-- LC2_A4 LUT F303
+	lc2_a4.d = (!MG & !lc7_a19)
+		# (lc7_a19 & lc2_a4);
+	lc2_a4.clk = lc1_a19;
+	lc2_a4.clrn = lc2_a19;
+	-- LC3_A4 LUT B888
+	lc3_a4 = (A13 & lc5_b14)
+		# (!lc5_b14 & lc6_a10 & lc8_a17);
+	-- LC4_A4 LUT FFFF
+	lc4_a4.d = VCC;
+	lc4_a4.clk = lc2_a4;
+	lc4_a4.clrn = lc5_a4;
+	-- LC5_A4 LUT 00F0
+	lc5_a4 = RESET & !lc2_a8;
+	-- LC6_A4 LUT F0CC
+	lc6_a4 = (lc5_a18 & !lc4_a4)
+		# (lc6_a4 & lc4_a4);
+	-- LC7_A4 LUT CFC0
+	lc7_a4 = (lc7_a1 & lc2_a8)
+		# (!lc2_a8 & lc6_a4);
+	-- LC8_A4 LUT CCF0
+	lc8_a4 = (lc8_a12 & !lc7_b9)
+		# (lc8_a20 & lc7_b9);
+	-- LC1_A5 LUT CFFF
+	lc1_a5 = !lc1_b16
+		# !lc8_a19
+		# lc4_a12;
+	-- LC2_A5 LUT 00FF
+	lc2_a5.d = !lc2_a5;
+	lc2_a5.clk = lc7_a7;
+	lc2_a5.clrn = lc3_a5;
+	lc2_a5.prn = lc1_a5;
+	-- LC3_A5 LUT 3033
+	lc3_a5 = (!lc4_a12 & !lc1_b16)
+		# (!lc4_a12 & lc8_a19);
+	-- LC4_A5 LUT BFFF
+	lc4_a5 = !lc3_a16
+		# !lc5_a7
+		# !lc3_a7
+		# lc2_b11;
+	-- LC5_A5 LUT FC30
+	lc5_a5 = (!lc3_b5 & lc7_a5)
+		# (lc3_b5 & lc7_b14);
+	-- LC6_A5 LUT FC0C
+	lc6_a5 = (lc8_b6 & !lc6_a10)
+		# (lc6_a10 & lc2_a5);
+	-- LC7_A5 LUT CFC0
+	lc7_a5 = (A4 & lc5_b14)
+		# (!lc5_b14 & lc6_a5);
+	-- LC8_A5 LUT BFFF
+	lc8_a5 = !lc2_a15
+		# !lc2_a5
+		# !lc2_a16
+		# lc4_a5;
+	-- LC1_A6 LUT ABA8
+	lc1_a6 = (lc7_a6 & lc2_b9)
+		# (lc7_a6 & lc7_b9)
+		# (!lc2_b9 & !lc7_b9 & lc4_a6);
+	-- LC2_A6 LUT 00FF
+	lc2_a6.d = !lc2_a6;
+	lc2_a6.clk = lc1_a14;
+	-- LC3_A6 LUT F0CC
+	lc3_a6 = (lc4_a18 & !lc4_a4)
+		# (lc3_a6 & lc4_a4);
+	-- LC4_A6 LUT CFC0
+	lc4_a6 = (lc5_a1 & lc2_a8)
+		# (!lc2_a8 & lc3_a6);
+	-- LC5_A6 LUT 00FF
+	lc5_a6.d = !lc5_a6;
+	lc5_a6.clk = lc2_a6;
+	-- LC6_A6 LUT 3000
+	lc6_a6 = !IORQ_n & A0 & M1;
+	-- LC7_A6 LUT FFC0
+	lc7_a6 = (lc6_a3 & lc7_b9)
+		# lc6_a12;
+	-- LC1_A7 LUT CFC0
+	lc1_a7 = (A1 & lc5_b14)
+		# (!lc5_b14 & lc6_a7);
+	-- LC2_A7 LUT FC30
+	lc2_a7 = (!lc3_b5 & lc1_a7)
+		# (lc3_b5 & lc2_a2);
+	-- LC3_A7 LUT 00FF
+	lc3_a7.d = !lc3_a7;
+	lc3_a7.clk = lc2_b11;
+	lc3_a7.clrn = lc8_a11;
+	-- LC4_A7 LUT F0FF
+	lc4_a7 = !lc3_a7
+		# lc2_b11;
+	-- LC5_A7 LUT 00FF
+	lc5_a7.d = !lc5_a7;
+	lc5_a7.clk = lc4_a7;
+	lc5_a7.clrn = lc8_a11;
+	-- LC6_A7 LUT FC0C
+	lc6_a7 = (lc4_b6 & !lc6_a10)
+		# (lc6_a10 & lc5_a7);
+	-- LC7_A7 LUT BFFF
+	lc7_a7 = !lc2_a16
+		# !lc3_a16
+		# !lc5_a7
+		# lc4_a7;
+	-- LC8_A7 LUT BFFF
+	lc8_a7 = !lc4_a13
+		# !lc8_a21
+		# !lc3_b17
+		# lc8_a5;
+	-- LC1_A8 LUT C000
+	lc1_a8 = lc8_a21 & lc5_a11 & lc8_a2;
+	-- LC2_A8 LUT 8000
+	lc2_a8 = A6 & lc5_a8 & lc6_a6 & lc5_a20;
+	-- LC3_A8 LUT 00FF
+	lc3_a8.d = !lc3_a8;
+	lc3_a8.clk = lc4_a8;
+	lc3_a8.clrn = lc6_a8;
+	lc3_a8.prn = lc7_a8;
+	-- LC4_A8 LUT BFFF
+	lc4_a8 = !lc8_a9
+		# !lc8_a2
+		# !lc5_a11
+		# lc8_a7;
+	-- LC5_A8 LUT 8000
+	lc5_a8 = A7 & A4 & A2 & A3;
+	-- LC6_A8 LUT 3033
+	lc6_a8 = (!lc4_a12 & !lc1_b16)
+		# (!lc4_a12 & lc3_a10);
+	-- LC7_A8 LUT CFFF
+	lc7_a8 = !lc1_b16
+		# !lc3_a10
+		# lc4_a12;
+	-- LC1_A9 LUT FC30
+	lc1_a9 = (!lc3_b5 & lc6_a3)
+		# (lc3_b5 & lc8_a20);
+	-- LC2_A9 LUT F3C0
+	lc2_a9 = (lc3_b5 & lc4_a18)
+		# (!lc3_b5 & lc5_a18);
+	-- LC3_A9 LUT 3033
+	lc3_a9 = (!lc4_a12 & !lc1_b16)
+		# (!lc4_a12 & lc4_a10);
+	-- LC4_A9 LUT F3C0
+	lc4_a9 = (lc4_b16 & lc2_a9)
+		# (!lc4_b16 & lc1_a9);
+	-- LC5_A9 LUT 0040
+	lc5_a9 = !A8 & lc4_b16 & lc7_b17 & !lc6_a12;
+	-- LC6_A9 LUT CFFF
+	lc6_a9 = !lc1_b16
+		# !lc4_a10
+		# lc4_a12;
+	-- LC8_A9 LUT 00FF
+	lc8_a9.d = !lc8_a9;
+	lc8_a9.clk = lc6_a13;
+	lc8_a9.clrn = lc3_a9;
+	lc8_a9.prn = lc6_a9;
+	-- LC1_A10 LUT ABA8
+	lc1_a10 = (lc2_a14 & lc2_b9)
+		# (lc2_a14 & lc7_b9)
+		# (!lc2_b9 & !lc7_b9 & lc8_a10);
+	-- LC2_A10 LUT CFC0
+	lc2_a10.d = (lc2_a10 & lc6_b9)
+		# (!lc6_b9 & DB5);
+	lc2_a10.clk = lc2_b12;
+	lc2_a10.clrn = RESET;
+	-- LC3_A10 LUT CFC0
+	lc3_a10.d = (lc3_a10 & lc6_b9)
+		# (!lc6_b9 & DB4);
+	lc3_a10.clk = lc2_b12;
+	lc3_a10.clrn = RESET;
+	-- LC4_A10 LUT CFC0
+	lc4_a10.d = (lc4_a10 & lc6_b9)
+		# (!lc6_b9 & DB3);
+	lc4_a10.clk = lc2_b12;
+	lc4_a10.clrn = RESET;
+	-- LC5_A10 LUT FDFF
+	lc5_a10 = !lc7_b17
+		# !A8
+		# lc4_b16
+		# lc5_a12;
+	-- LC6_A10 LUT FC30
+	lc6_a10.d = (!lc2_b9 & lc6_a10)
+		# (lc2_b9 & DB3);
+	lc6_a10.clk = lc2_b12;
+	lc6_a10.clrn = RESET;
+	-- LC7_A10 LUT AAAA
+	lc7_a10.d = MD7;
+	lc7_a10.clk = !lc3_b20;
+	-- LC8_A10 LUT CCF0
+	lc8_a10 = (lc5_a19 & !lc2_a8)
+		# (lc7_a10 & lc2_a8);
+	-- LC1_A11 LUT CFFF
+	lc1_a11 = !lc1_b16
+		# !lc7_a18
+		# lc4_a12;
+	-- LC2_A11 LUT CFFF
+	lc2_a11 = !lc1_b16
+		# !lc4_a1
+		# lc4_a12;
+	-- LC3_A11 LUT CFFF
+	lc3_a11 = !lc1_b16
+		# !lc6_a18
+		# lc4_a12;
+	-- LC4_A11 LUT 3033
+	lc4_a11 = (!lc4_a12 & !lc1_b16)
+		# (!lc4_a12 & lc4_a1);
+	-- LC5_A11 LUT 00FF
+	lc5_a11.d = !lc5_a11;
+	lc5_a11.clk = lc8_a7;
+	lc5_a11.clrn = lc7_a11;
+	lc5_a11.prn = lc1_a11;
+	-- LC6_A11 LUT BFFF
+	lc6_a11 = !lc3_b17
+		# !lc2_a15
+		# !lc2_a5
+		# lc7_a7;
+	-- LC7_A11 LUT 3033
+	lc7_a11 = (!lc4_a12 & !lc1_b16)
+		# (!lc4_a12 & lc7_a18);
+	-- LC8_A11 LUT 000F
+	lc8_a11 = !lc4_a12 & !lc1_b16;
+	-- LC1_A12 LUT D8CC
+	lc1_a12.d = (lc1_a12 & !lc5_a20)
+		# (A0 & lc1_a12)
+		# (!A0 & DB2 & lc5_a20);
+	lc1_a12.clk = lc2_b12;
+	-- LC2_A12 LUT ABA8
+	lc2_a12.d = (lc2_a12 & A0)
+		# (lc2_a12 & lc2_a20)
+		# (!A0 & !lc2_a20 & DB4);
+	lc2_a12.clk = lc2_b12;
+	-- LC3_A12 LUT D8CC
+	lc3_a12.d = (lc3_a12 & !lc5_a20)
+		# (A0 & lc3_a12)
+		# (!A0 & DB1 & lc5_a20);
+	lc3_a12.clk = lc2_b12;
+	-- LC4_A12 LUT 8000
+	lc4_a12.d = lc1_a8 & lc8_a17 & lc3_a8 & lc8_a9;
+	lc4_a12.clk = lc7_b20;
+	-- LC5_A12 LUT ABA8
+	lc5_a12.d = (lc5_a12 & A0)
+		# (lc5_a12 & lc2_a20)
+		# (!A0 & !lc2_a20 & DB6);
+	lc5_a12.clk = lc2_b12;
+	lc5_a12.clrn = lc7_a12;
+	-- LC6_A12 LUT CDC8
+	lc6_a12.d = (A0 & lc6_a12)
+		# (lc6_a12 & lc2_a20)
+		# (!A0 & !lc2_a20 & DB5);
+	lc6_a12.clk = lc2_b12;
+	lc6_a12.clrn = lc7_a12;
+	-- LC7_A12 LUT FFF0
+	lc7_a12 = RESET
+		# lc2_a12;
+	-- LC8_A12 LUT CDC8
+	lc8_a12.d = (A0 & lc8_a12)
+		# (lc8_a12 & lc2_a20)
+		# (!A0 & !lc2_a20 & DB7);
+	lc8_a12.clk = lc2_b12;
+	-- LC1_A13 LUT CFFF
+	lc1_a13 = !lc1_b16
+		# !lc8_a18
+		# lc4_a12;
+	-- LC2_A13 LUT CFC0
+	lc2_a13 = (A8 & lc5_b14)
+		# (!lc5_b14 & lc8_a13);
+	-- LC3_A13 LUT BFFF
+	lc3_a13 = !lc8_a21
+		# !lc3_b17
+		# !lc2_a15
+		# lc3_a15;
+	-- LC4_A13 LUT 00FF
+	lc4_a13.d = !lc4_a13;
+	lc4_a13.clk = lc3_a13;
+	lc4_a13.clrn = lc7_a13;
+	lc4_a13.prn = lc1_a13;
+	-- LC5_A13 LUT E4AA
+	lc5_a13 = (lc3_b5 & !lc5_b14)
+		# (lc3_b5 & lc1_b5)
+		# (!lc3_b5 & A6 & lc5_b14);
+	-- LC6_A13 LUT DFFF
+	lc6_a13 = !lc8_a2
+		# !lc5_a11
+		# !lc4_a13
+		# lc3_a13;
+	-- LC7_A13 LUT 3033
+	lc7_a13 = (!lc4_a12 & !lc1_b16)
+		# (!lc4_a12 & lc8_a18);
+	-- LC8_A13 LUT FC0C
+	lc8_a13 = (lc2_b13 & !lc6_a10)
+		# (lc6_a10 & lc4_a13);
+	-- LC1_A14 LUT 00FF
+	lc1_a14.d = !lc1_a14;
+	lc1_a14.clk = lc7_a14;
+	-- LC2_A14 LUT F0CC
+	lc2_a14 = (lc1_a12 & !lc7_b9)
+		# (lc3_a12 & lc7_b9);
+	-- LC3_A14 LUT CFFF
+	lc3_a14 = !lc5_a7
+		# !lc3_a7
+		# lc2_b11;
+	-- LC4_A14 LUT FE50
+	lc4_a14 = (!lc3_b5 & lc5_a14)
+		# (lc3_b5 & lc6_a14)
+		# (lc4_b17 & lc6_a14);
+	-- LC5_A14 LUT B888
+	lc5_a14 = (A0 & lc5_b14)
+		# (!lc5_b14 & lc6_a10 & lc3_a7);
+	-- LC6_A14 LUT C0CF
+	lc6_a14 = (!lc5_b14 & !lc6_a10)
+		# (lc1_b9 & lc5_b14);
+	-- LC7_A14 LUT 00FF
+	lc7_a14.d = !lc7_a14;
+	lc7_a14.clk = !lc1_b16;
+	-- LC8_A14 LUT FC30
+	lc8_a14 = (!lc3_b5 & lc4_a15)
+		# (lc3_b5 & lc3_a4);
+	-- LC1_A15 LUT FC0C
+	lc1_a15 = (lc3_b13 & !lc6_a10)
+		# (lc6_a10 & lc2_a15);
+	-- LC2_A15 LUT 00FF
+	lc2_a15.d = !lc2_a15;
+	lc2_a15.clk = lc3_a15;
+	lc2_a15.clrn = lc7_a15;
+	lc2_a15.prn = lc8_a15;
+	-- LC3_A15 LUT BFFF
+	lc3_a15 = !lc2_a5
+		# !lc2_a16
+		# !lc3_a16
+		# lc3_a14;
+	-- LC4_A15 LUT CFC0
+	lc4_a15 = (A5 & lc5_b14)
+		# (!lc5_b14 & lc1_a15);
+	-- LC5_A15 LUT 0C00
+	lc5_a15 = A5 & !A1 & lc6_a6;
+	-- LC6_A15 LUT 0C00
+	lc6_a15 = RD_n & !IORQ_n & M1;
+	-- LC7_A15 LUT 3033
+	lc7_a15 = (!lc4_a12 & !lc1_b16)
+		# (!lc4_a12 & lc7_a3);
+	-- LC8_A15 LUT CFFF
+	lc8_a15 = !lc1_b16
+		# !lc7_a3
+		# lc4_a12;
+	-- LC1_A16 LUT CFC0
+	lc1_a16 = (A3 & lc5_b14)
+		# (!lc5_b14 & lc5_a16);
+	-- LC2_A16 LUT 00FF
+	lc2_a16.d = !lc2_a16;
+	lc2_a16.clk = lc4_a5;
+	lc2_a16.clrn = lc8_a11;
+	-- LC3_A16 LUT 00FF
+	lc3_a16.d = !lc3_a16;
+	lc3_a16.clk = lc3_a14;
+	lc3_a16.clrn = lc8_a11;
+	-- LC4_A16 LUT CFC0
+	lc4_a16 = (A2 & lc5_b14)
+		# (!lc5_b14 & lc7_a16);
+	-- LC5_A16 LUT FC0C
+	lc5_a16 = (lc3_b6 & !lc6_a10)
+		# (lc6_a10 & lc2_a16);
+	-- LC6_A16 LUT FC30
+	lc6_a16 = (!lc3_b5 & lc1_a16)
+		# (lc3_b5 & lc7_b15);
+	-- LC7_A16 LUT FC0C
+	lc7_a16 = (lc2_b6 & !lc6_a10)
+		# (lc6_a10 & lc3_a16);
+	-- LC8_A16 LUT FC30
+	lc8_a16 = (!lc3_b5 & lc4_a16)
+		# (lc3_b5 & lc8_b13);
+	-- LC1_A17 LUT F0CC
+	lc1_a17 = (lc4_a3 & !lc4_a4)
+		# (lc1_a17 & lc4_a4);
+	-- LC2_A17 LUT F1E0
+	lc2_a17 = (lc2_b9 & lc7_a17)
+		# (lc7_b9 & lc7_a17)
+		# (!lc2_b9 & !lc7_b9 & lc6_a17);
+	-- LC3_A17 LUT F0CC
+	lc3_a17 = (lc2_a18 & !lc4_a4)
+		# (lc3_a17 & lc4_a4);
+	-- LC4_A17 LUT 3033
+	lc4_a17 = (!lc4_a12 & !lc1_b16)
+		# (!lc4_a12 & lc2_a10);
+	-- LC5_A17 LUT CFFF
+	lc5_a17 = !lc1_b16
+		# !lc2_a10
+		# lc4_a12;
+	-- LC6_A17 LUT CFC0
+	lc6_a17 = (lc6_a1 & lc2_a8)
+		# (!lc2_a8 & lc3_a17);
+	-- LC7_A17 LUT CFC0
+	lc7_a17 = (lc4_a20 & lc7_b9)
+		# (!lc7_b9 & lc1_a17);
+	-- LC8_A17 LUT 00FF
+	lc8_a17.d = !lc8_a17;
+	lc8_a17.clk = lc4_a2;
+	lc8_a17.clrn = lc4_a17;
+	lc8_a17.prn = lc5_a17;
+	-- LC1_A18 LUT FFD0
+	lc1_a18 = (!lc6_a15 & lc2_b12)
+		# (A6 & lc2_b12)
+		# lc5_a9;
+	-- LC2_A18 LUT F3C0
+	lc2_a18.d = (lc5_a21 & lc2_a18)
+		# (!lc5_a21 & DB0);
+	lc2_a18.clk = lc2_b12;
+	lc2_a18.clrn = RESET;
+	-- LC3_A18 LUT F3C0
+	lc3_a18.d = (lc5_a21 & lc3_a18)
+		# (!lc5_a21 & DB2);
+	lc3_a18.clk = lc2_b12;
+	lc3_a18.clrn = RESET;
+	-- LC4_A18 LUT F3C0
+	lc4_a18.d = (lc6_b17 & lc4_a18)
+		# (!lc6_b17 & DB1);
+	lc4_a18.clk = lc2_b12;
+	lc4_a18.clrn = RESET;
+	-- LC5_A18 LUT F3C0
+	lc5_a18.d = (lc6_b17 & lc5_a18)
+		# (!lc6_b17 & DB0);
+	lc5_a18.clk = lc2_b12;
+	lc5_a18.clrn = RESET;
+	-- LC6_A18 LUT CFC0
+	lc6_a18.d = (lc6_a18 & lc6_b9)
+		# (!lc6_b9 & DB2);
+	lc6_a18.clk = lc2_b12;
+	lc6_a18.clrn = RESET;
+	-- LC7_A18 LUT CFC0
+	lc7_a18.d = (lc7_a18 & lc6_b9)
+		# (!lc6_b9 & DB1);
+	lc7_a18.clk = lc2_b12;
+	lc7_a18.clrn = RESET;
+	-- LC8_A18 LUT CFC0
+	lc8_a18.d = (lc8_a18 & lc6_b9)
+		# (!lc6_b9 & DB0);
+	lc8_a18.clk = lc2_b12;
+	lc8_a18.clrn = RESET;
+	-- LC1_A19 LUT 0F00
+	lc1_a19 = !M1 & lc1_b17;
+	-- LC2_A19 LUT FFFC
+	lc2_a19 = RD_n
+		# MREQ_n
+		# lc5_b17;
+	-- LC3_A19 LUT FFEF
+	lc3_a19.d = !lc6_a19
+		# lc6_b20
+		# lc4_a19
+		# lc5_b17;
+	lc3_a19.clk = !MREQ_n;
+	-- LC4_A19 LUT FFCF
+	lc4_a19 = !A8
+		# lc4_b9
+		# M1;
+	-- LC5_A19 LUT D8CC
+	lc5_a19.d = (lc5_a19 & !lc5_a20)
+		# (A0 & lc5_a19)
+		# (!A0 & DB0 & lc5_a20);
+	lc5_a19.clk = lc2_b12;
+	-- LC6_A19 LUT CFC0
+	lc6_a19.d = (lc6_a19 & lc5_a21)
+		# (!lc5_a21 & DB4);
+	lc6_a19.clk = lc2_b12;
+	lc6_a19.clrn = RESET;
+	-- LC7_A19 LUT FC0C
+	lc7_a19.d = (lc7_a19 & !lc2_b9)
+		# (lc2_b9 & DB2);
+	lc7_a19.clk = lc2_b12;
+	lc7_a19.clrn = RESET;
+	-- LC8_A19 LUT FC0C
+	lc8_a19.d = (lc8_a19 & !lc3_b9)
+		# (lc3_b9 & DB4);
+	lc8_a19.clk = lc2_b12;
+	lc8_a19.clrn = RESET;
+	-- LC1_A20 LUT F3C0
+	lc1_a20.d = (lc5_a10 & lc1_a20)
+		# (!lc5_a10 & DB4);
+	lc1_a20.clk = lc2_b12;
+	lc1_a20.clrn = RESET;
+	-- LC2_A20 LUT EFFE
+	lc2_a20 = A5
+		# A1
+		# (lc7_a20 & !lc3_a20)
+		# (!lc7_a20 & lc3_a20);
+	-- LC3_A20 LUT FF00
+	lc3_a20.d = lc2_a4;
+	lc3_a20.clk = lc1_a19;
+	lc3_a20.clrn = RESET;
+	lc3_a20.prn = lc3_a19;
+	-- LC4_A20 LUT FC0C
+	lc4_a20.d = (lc4_a20 & !lc7_b9)
+		# (lc7_b9 & DB0);
+	lc4_a20.clk = lc2_b12;
+	lc4_a20.clrn = RESET;
+	-- LC5_A20 LUT 8008
+	lc5_a20 = (A5 & A1 & !lc7_a20 & !lc3_a20)
+		# (A5 & A1 & lc7_a20 & lc3_a20);
+	-- LC6_A20 LUT F3C0
+	lc6_a20.d = (lc5_a10 & lc6_a20)
+		# (!lc5_a10 & DB0);
+	lc6_a20.clk = lc2_b12;
+	lc6_a20.clrn = RESET;
+	-- LC7_A20 LUT F3C0
+	lc7_a20.d = (lc5_a10 & lc7_a20)
+		# (!lc5_a10 & DB2);
+	lc7_a20.clk = lc2_b12;
+	lc7_a20.clrn = RESET;
+	-- LC8_A20 LUT FC0C
+	lc8_a20.d = (lc8_a20 & !lc7_b9)
+		# (lc7_b9 & DB4);
+	lc8_a20.clk = lc2_b12;
+	lc8_a20.clrn = RESET;
+	-- LC1_A21 LUT F1E0
+	lc1_a21 = (lc2_b9 & lc7_a21)
+		# (lc7_b9 & lc7_a21)
+		# (!lc2_b9 & !lc7_b9 & lc2_a1);
+	-- LC2_A21 LUT 3033
+	lc2_a21 = (!lc4_a12 & !lc1_b16)
+		# (!lc4_a12 & lc3_a1);
+	-- LC3_A21 LUT F0CC
+	lc3_a21 = (lc8_a3 & !lc4_a4)
+		# (lc3_a21 & lc4_a4);
+	-- LC4_A21 LUT 0307
+	lc4_a21 = (!A8 & !lc5_a12 & !lc6_a12)
+		# (!lc4_b16 & !lc5_a12);
+	-- LC5_A21 LUT F2FF
+	lc5_a21 = !lc7_b17
+		# (lc4_a3 & !lc7_a19)
+		# lc4_a21;
+	-- LC6_A21 LUT CFFF
+	lc6_a21 = !lc1_b16
+		# !lc3_a1
+		# lc4_a12;
+	-- LC7_A21 LUT CFC0
+	lc7_a21 = (lc3_a3 & lc7_b9)
+		# (!lc7_b9 & lc3_a21);
+	-- LC8_A21 LUT 00FF
+	lc8_a21.d = !lc8_a21;
+	lc8_a21.clk = lc6_a11;
+	lc8_a21.clrn = lc2_a21;
+	lc8_a21.prn = lc6_a21;
+	-- LC1_B1 LUT FC0C
+	lc1_b1.d = (lc1_b1 & !lc7_b9)
+		# (lc7_b9 & DB2);
+	lc1_b1.clk = lc2_b12;
+	lc1_b1.clrn = RESET;
+	-- LC2_B1 LUT 8F80
+	lc2_b1 = (A15 & lc4_a9 & lc5_b14)
+		# (!lc5_b14 & lc6_a10);
+	-- LC3_B1 LUT CFC0
+	lc3_b1 = (lc7_b1 & lc2_a8)
+		# (!lc2_a8 & lc8_b1);
+	-- LC4_B1 LUT F3C0
+	lc4_b1 = (lc3_b5 & lc6_b1)
+		# (!lc3_b5 & lc2_a13);
+	-- LC5_B1 LUT C480
+	lc5_b1 = (lc4_b16 & A15 & lc1_a20)
+		# (!lc4_b16 & A15 & lc4_b3);
+	-- LC6_B1 LUT CFC0
+	lc6_b1 = (lc5_b1 & lc5_b14)
+		# (!lc5_b14 & lc6_a10);
+	-- LC7_B1 LUT AAAA
+	lc7_b1.d = MD3;
+	lc7_b1.clk = !lc3_b20;
+	-- LC8_B1 LUT F0CC
+	lc8_b1 = (lc1_a20 & !lc4_a4)
+		# (lc8_b1 & lc4_a4);
+	-- LC1_B2 LUT 5554
+	lc1_b2 = (!RD_n & lc3_b9)
+		# (!RD_n & lc4_b2)
+		# (!RD_n & lc2_a8);
+	-- LC2_B2 LUT F0CC
+	lc2_b2 = (lc8_b19 & !lc4_a4)
+		# (lc2_b2 & lc4_a4);
+	-- LC3_B2 LUT F1E0
+	lc3_b2 = (lc2_b9 & lc8_b2)
+		# (lc7_b9 & lc8_b2)
+		# (!lc2_b9 & !lc7_b9 & lc7_b2);
+	-- LC4_B2 LUT FFF0
+	lc4_b2 = lc2_b9
+		# lc7_b9;
+	-- LC5_B2 LUT AAAA
+	lc5_b2.d = MD2;
+	lc5_b2.clk = !lc3_b20;
+	-- LC6_B2 LUT F0CC
+	lc6_b2 = (lc3_a18 & !lc4_a4)
+		# (lc6_b2 & lc4_a4);
+	-- LC7_B2 LUT CFC0
+	lc7_b2 = (lc5_b2 & lc2_a8)
+		# (!lc2_a8 & lc6_b2);
+	-- LC8_B2 LUT CFC0
+	lc8_b2 = (lc1_b1 & lc7_b9)
+		# (!lc7_b9 & lc2_b2);
+	-- LC1_B3 LUT F1E0
+	lc1_b3 = (lc2_b9 & lc8_b3)
+		# (lc7_b9 & lc8_b3)
+		# (!lc2_b9 & !lc7_b9 & lc3_b1);
+	-- LC2_B3 LUT FF00
+	lc2_b3.d = lc7_b3;
+	lc2_b3.clk = lc2_b10;
+	-- LC3_B3 LUT F0E2
+	lc3_b3.d = (MD7 & !lc4_b18 & !lc3_b14)
+		# (lc4_b18 & lc1_b18)
+		# (lc1_b18 & lc3_b14);
+	lc3_b3.clk = lc2_b10;
+	-- LC4_B3 LUT FC0C
+	lc4_b3.d = (lc4_b3 & !lc7_b9)
+		# (lc7_b9 & DB3);
+	lc4_b3.clk = lc2_b12;
+	lc4_b3.clrn = RESET;
+	-- LC5_B3 LUT FF00
+	lc5_b3.d = lc3_b3;
+	lc5_b3.clk = lc2_b10;
+	-- LC6_B3 LUT FF00
+	lc6_b3.d = lc2_b3;
+	lc6_b3.clk = lc2_b10;
+	-- LC7_B3 LUT FF00
+	lc7_b3.d = lc5_b3;
+	lc7_b3.clk = lc2_b10;
+	-- LC8_B3 LUT CFC0
+	lc8_b3 = (lc4_b3 & lc7_b9)
+		# (!lc7_b9 & lc4_b15);
+	-- LC1_B4 LUT 13A0
+	lc1_b4.d = (lc4_b4 & lc2_b16 & !lc1_b4)
+		# (!lc7_b4 & !lc2_b16 & lc1_b4)
+		# (!lc4_b4 & !lc7_b4 & lc1_b4);
+	lc1_b4.clk = !lc6_b4;
+	-- LC2_B4 LUT 00FF
+	lc2_b4.d = !lc3_b6;
+	lc2_b4.clk = lc2_b6;
+	lc2_b4.clrn = lc1_b19;
+	-- LC3_B4 LUT ECA0
+	lc3_b4.d = (lc4_b4 & lc2_b16)
+		# (lc7_b4 & lc1_b4);
+	lc3_b4.clk = !lc6_b4;
+	lc3_b4.clrn = lc1_b19;
+	-- LC4_B4 LUT 0A8A
+	lc4_b4 = (lc5_b4 & !lc6_a10)
+		# (lc5_b4 & lc3_b13 & !lc1_b4);
+	-- LC5_B4 LUT CCF0
+	lc5_b4 = (lc6_b16 & !lc1_b4)
+		# (lc8_a12 & lc1_b4);
+	-- LC6_B4 LUT A0C0
+	lc6_b4 = (lc3_b15 & lc1_b19 & !lc6_a10)
+		# (lc2_b4 & lc1_b19 & lc6_a10);
+	-- LC7_B4 LUT CC40
+	lc7_b4 = (!lc8_a12 & lc8_b4 & lc3_b13)
+		# (lc8_b4 & lc6_a10);
+	-- LC8_B4 LUT C000
+	lc8_b4 = lc7_b16 & lc5_b16 & lc6_b16;
+	-- LC1_B5 LUT E6A2
+	lc1_b5 = (lc4_b16 & !A15)
+		# (lc4_b16 & lc2_a18)
+		# (!lc4_b16 & A15 & lc4_a20);
+	-- LC2_B5 LUT F3C0
+	lc2_b5 = (lc3_b5 & lc8_b5)
+		# (!lc3_b5 & lc3_a2);
+	-- LC3_B5 LUT 00FF
+	lc3_b5.d = !lc6_b19;
+	lc3_b5.clk = !p14M;
+	-- LC4_B5 LUT 28A0
+	lc4_b5 = (lc6_b14 & lc6_b3 & !lc1_a3)
+		# (lc6_b14 & !lc3_b11 & lc6_b3)
+		# (lc6_b14 & lc3_b11 & !lc6_b3 & lc1_a3);
+	-- LC5_B5 LUT 820A
+	lc5_b5 = (lc6_b14 & !lc6_b3 & !lc1_a3)
+		# (lc6_b14 & !lc3_b11 & !lc6_b3)
+		# (lc6_b14 & lc3_b11 & lc6_b3 & lc1_a3);
+	-- LC6_B5 LUT 00FF
+	lc6_b5.d = !lc6_b5;
+	lc6_b5.clk = !lc4_b21;
+	lc6_b5.clrn = !(!lc3_b7 & !DB7);
+	lc6_b5.prn = !(!lc3_b7 & DB7);
+	-- LC7_B5 LUT 80C4
+	lc7_b5 = (!lc4_b16 & A15 & !lc3_a3)
+		# (lc4_b16 & A15 & lc5_a3);
+	-- LC8_B5 LUT F0CC
+	lc8_b5 = (lc8_a3 & !lc5_b14)
+		# (lc7_b5 & lc5_b14);
+	-- LC1_B6 LUT C000
+	lc1_b6 = lc6_b6 & lc2_b6 & lc4_b6;
+	-- LC2_B6 LUT 3CF0
+	lc2_b6.d = (lc2_b6 & !lc4_b6)
+		# (!lc6_b6 & lc2_b6)
+		# (lc6_b6 & !lc2_b6 & lc4_b6);
+	lc2_b6.clk = lc2_b14;
+	-- LC3_B6 LUT 7F80
+	lc3_b6.d = (lc6_b6 & lc2_b6 & lc4_b6 & !lc3_b6)
+		# (!lc4_b6 & lc3_b6)
+		# (!lc2_b6 & lc3_b6)
+		# (!lc6_b6 & lc3_b6);
+	lc3_b6.clk = lc2_b14;
+	lc3_b6.clrn = !lc3_b19;
+	-- LC4_B6 LUT 0FF0
+	lc4_b6.d = (lc6_b6 & !lc4_b6)
+		# (!lc6_b6 & lc4_b6);
+	lc4_b6.clk = lc2_b14;
+	-- LC5_B6 LUT 6AAA
+	lc5_b6.d = (lc5_b6 & !lc3_b6)
+		# (lc5_b6 & !lc8_b6)
+		# (lc5_b6 & !lc1_b6)
+		# (!lc5_b6 & lc1_b6 & lc8_b6 & lc3_b6);
+	lc5_b6.clk = lc2_b14;
+	lc5_b6.clrn = !lc3_b19;
+	-- LC6_B6 LUT 8000
+	lc6_b6 = lc6_b11 & lc5_b11 & lc3_b20 & lc7_b20;
+	-- LC8_B6 LUT 3CF0
+	lc8_b6.d = (lc8_b6 & !lc3_b6)
+		# (!lc1_b6 & lc8_b6)
+		# (lc1_b6 & !lc8_b6 & lc3_b6);
+	lc8_b6.clk = lc2_b14;
+	lc8_b6.clrn = !lc3_b19;
+	-- LC1_B7 LUT F1E0
+	lc1_b7 = (lc2_b9 & lc3_b21)
+		# (lc7_b9 & lc3_b21)
+		# (!lc2_b9 & !lc7_b9 & lc8_b7);
+	-- LC2_B7 LUT FC0C
+	lc2_b7.d = (lc2_b7 & !lc7_b9)
+		# (lc7_b9 & DB6);
+	lc2_b7.clk = lc2_b12;
+	lc2_b7.clrn = RESET;
+	-- LC3_B7 LUT F0FF
+	lc3_b7 = !lc2_b9
+		# lc2_b12;
+	-- LC4_B7 LUT F3C0
+	lc4_b7.d = (lc6_b17 & lc4_b7)
+		# (!lc6_b17 & DB2);
+	lc4_b7.clk = lc2_b12;
+	lc4_b7.clrn = RESET;
+	-- LC5_B7 LUT 3B7F
+	lc5_b7 = (!lc4_b16 & !lc2_b7)
+		# !A15
+		# (lc4_b16 & !lc4_b7);
+	-- LC6_B7 LUT F0CC
+	lc6_b7 = (lc4_b7 & !lc4_a4)
+		# (lc6_b7 & lc4_a4);
+	-- LC7_B7 LUT AAAA
+	lc7_b7.d = MD6;
+	lc7_b7.clk = !lc3_b20;
+	-- LC8_B7 LUT CFC0
+	lc8_b7 = (lc7_b7 & lc2_a8)
+		# (!lc2_a8 & lc6_b7);
+	-- LC1_B8 LUT ECA0
+	lc1_b8 = (lc8_b8 & lc5_b5)
+		# (lc7_b8 & lc4_b5);
+	-- LC2_B8 LUT FF00
+	lc2_b8.d = lc4_b8;
+	lc2_b8.clk = p14M;
+	-- LC3_B8 LUT FFF0
+	lc3_b8.d = lc4_b18
+		# lc3_b14;
+	lc3_b8.clk = p14M;
+	-- LC4_B8 LUT FF00
+	lc4_b8.d = lc3_b8;
+	lc4_b8.clk = p14M;
+	-- LC5_B8 LUT 00FF
+	lc5_b8.d = !lc2_b8;
+	lc5_b8.clk = p14M;
+	lc5_b8.clrn = !lc8_b10;
+	-- LC6_B8 LUT 000C
+	lc6_b8.d = MD6 & !lc1_b19 & !lc1_b4;
+	lc6_b8.clk = lc4_b14;
+	-- LC7_B8 LUT CCCA
+	lc7_b8.d = (MD1 & !lc1_b19 & !lc1_b4)
+		# (lc3_a12 & lc1_b19)
+		# (lc3_a12 & lc1_b4);
+	lc7_b8.clk = lc4_b14;
+	-- LC8_B8 LUT CCCA
+	lc8_b8.d = (MD4 & !lc1_b19 & !lc1_b4)
+		# (lc3_a12 & lc1_b19)
+		# (lc3_a12 & lc1_b4);
+	lc8_b8.clk = lc4_b14;
+	-- LC1_B9 LUT E6A2
+	lc1_b9 = (lc4_b16 & !A15)
+		# (lc4_b16 & lc3_a18)
+		# (!lc4_b16 & A15 & lc1_b1);
+	-- LC2_B9 LUT C000
+	lc2_b9 = A10 & lc4_b9 & lc5_a9;
+	-- LC3_B9 LUT 3000
+	lc3_b9 = !A10 & lc4_b9 & lc5_a9;
+	-- LC4_B9 LUT FF00
+	lc4_b9 = A9;
+	-- LC5_B9 LUT 00FF
+	lc5_b9.d = !lc5_b9;
+	lc5_b9.clk = !lc4_b19;
+	lc5_b9.clrn = !IORQ_n;
+	-- LC6_B9 LUT F3FF
+	lc6_b9 = !lc5_a9
+		# !A10
+		# lc4_b9;
+	-- LC7_B9 LUT 0300
+	lc7_b9 = !A10 & !lc4_b9 & lc5_a9;
+	-- LC8_B9 LUT 3F0F
+	lc8_b9 = !lc8_b19
+		# (!lc5_b9 & lc7_b10);
+	-- LC1_B10 LUT CFFF
+	lc1_b10 = !lc2_b14
+		# !lc6_b19
+		# lc5_b11;
+	-- LC2_B10 LUT F0CC
+	lc2_b10 = (lc2_b14 & !lc6_a10)
+		# (p14M & lc6_a10);
+	-- LC3_B10 LUT FF00
+	lc3_b10.d = lc4_b10;
+	lc3_b10.clk = !MREQ_n;
+	lc3_b10.clrn = M1;
+	-- LC4_B10 LUT FFFF
+	lc4_b10.d = VCC;
+	lc4_b10.clk = !MREQ_n;
+	lc4_b10.clrn = M1;
+	-- LC5_B10 LUT 3F33
+	lc5_b10 = !lc5_b11
+		# (!lc5_b7 & lc5_b14);
+	-- LC6_B10 LUT 0800
+	lc6_b10 = lc3_b10 & RD_n & !MREQ_n & lc5_b17;
+	-- LC7_B10 LUT 444F
+	lc7_b10 = (!lc6_b10 & !lc1_b17)
+		# (!lc6_b19 & lc3_b16);
+	-- LC8_B10 LUT FC0C
+	lc8_b10.d = (lc8_b10 & !lc5_b14)
+		# (lc5_b14 & lc6_b10);
+	lc8_b10.clk = lc3_b5;
+	lc8_b10.clrn = lc1_b10;
+	-- LC1_B11 LUT ECA0
+	lc1_b11 = (lc7_b11 & lc5_b5)
+		# (lc4_b11 & lc4_b5);
+	-- LC2_B11 LUT FFCF
+	lc2_b11 = !lc7_b20
+		# lc1_b19
+		# lc1_b4;
+	-- LC3_B11 LUT 000C
+	lc3_b11.d = MD7 & !lc1_b19 & !lc1_b4;
+	lc3_b11.clk = lc4_b14;
+	-- LC4_B11 LUT CCCA
+	lc4_b11.d = (MD0 & !lc1_b19 & !lc1_b4)
+		# (lc5_a19 & lc1_b19)
+		# (lc5_a19 & lc1_b4);
+	lc4_b11.clk = lc4_b14;
+	-- LC5_B11 LUT 00FF
+	lc5_b11.d = !lc5_b11;
+	lc5_b11.clk = lc2_b14;
+	-- LC6_B11 LUT 6AAA
+	lc6_b11.d = (lc6_b11 & !lc7_b20)
+		# (lc6_b11 & !lc3_b20)
+		# (lc6_b11 & !lc5_b11)
+		# (!lc6_b11 & lc5_b11 & lc3_b20 & lc7_b20);
+	lc6_b11.clk = lc2_b14;
+	-- LC7_B11 LUT CCCA
+	lc7_b11.d = (MD3 & !lc1_b19 & !lc1_b4)
+		# (lc5_a19 & lc1_b19)
+		# (lc5_a19 & lc1_b4);
+	lc7_b11.clk = lc4_b14;
+	-- LC8_B11 LUT CCCA
+	lc8_b11.d = (MD5 & !lc1_b19 & !lc1_b4)
+		# (lc1_a12 & lc1_b19)
+		# (lc1_a12 & lc1_b4);
+	lc8_b11.clk = lc4_b14;
+	-- LC1_B12 LUT ECA0
+	lc1_b12 = (lc8_b11 & lc5_b5)
+		# (lc3_b12 & lc4_b5);
+	-- LC2_B12 LUT FF03
+	lc2_b12 = (!lc4_b12 & !lc5_b12)
+		# lc7_b12;
+	-- LC3_B12 LUT CCCA
+	lc3_b12.d = (MD2 & !lc1_b19 & !lc1_b4)
+		# (lc1_a12 & lc1_b19)
+		# (lc1_a12 & lc1_b4);
+	lc3_b12.clk = lc4_b14;
+	-- LC4_B12 LUT FFFF
+	lc4_b12.d = VCC;
+	lc4_b12.clk = lc4_b19;
+	lc4_b12.clrn = lc6_a15;
+	-- LC5_B12 LUT FF00
+	lc5_b12.d = lc4_b12;
+	lc5_b12.clk = lc4_b19;
+	lc5_b12.clrn = lc6_a15;
+	-- LC6_B12 LUT FF00
+	lc6_b12.d = lc5_b12;
+	lc6_b12.clk = lc4_b19;
+	-- LC7_B12 LUT F3C0
+	lc7_b12 = (lc8_b19 & lc8_b12)
+		# (!lc8_b19 & lc6_b12);
+	-- LC8_B12 LUT FF00
+	lc8_b12.d = lc6_b12;
+	lc8_b12.clk = lc4_b19;
+	-- LC1_B13 LUT 00FF
+	lc1_b13.d = !lc1_b13;
+	lc1_b13.clk = lc6_b4;
+	lc1_b13.clrn = !lc3_b4;
+	-- LC2_B13 LUT FC30
+	lc2_b13 = (!lc3_b20 & lc1_b13)
+		# (lc3_b20 & lc6_b16);
+	-- LC3_B13 LUT 7F80
+	lc3_b13.d = (lc6_b13 & lc4_b13 & lc1_b13 & !lc3_b13)
+		# (!lc1_b13 & lc3_b13)
+		# (!lc4_b13 & lc3_b13)
+		# (!lc6_b13 & lc3_b13);
+	lc3_b13.clk = lc6_b4;
+	lc3_b13.clrn = !lc3_b4;
+	-- LC4_B13 LUT 0FF0
+	lc4_b13.d = (lc4_b13 & !lc1_b13)
+		# (!lc4_b13 & lc1_b13);
+	lc4_b13.clk = lc6_b4;
+	lc4_b13.clrn = !lc3_b4;
+	-- LC5_B13 LUT FC30
+	lc5_b13 = (!lc3_b20 & lc4_b13)
+		# (lc3_b20 & lc2_b16);
+	-- LC6_B13 LUT 3CCC
+	lc6_b13.d = (lc6_b13 & !lc1_b13)
+		# (lc6_b13 & !lc4_b13)
+		# (!lc6_b13 & lc4_b13 & lc1_b13);
+	lc6_b13.clk = lc6_b4;
+	lc6_b13.clrn = !lc3_b4;
+	-- LC7_B13 LUT F404
+	lc7_b13 = (!lc3_b20 & lc6_b13 & !lc6_a10)
+		# (lc6_a10 & lc8_a2);
+	-- LC8_B13 LUT CFC0
+	lc8_b13 = (A10 & lc5_b14)
+		# (!lc5_b14 & lc7_b13);
+	-- LC1_B14 LUT CCC0
+	lc1_b14 = (lc6_b8 & lc5_b5)
+		# (lc6_b8 & lc4_b5);
+	-- LC2_B14 LUT 00FF
+	lc2_b14.d = !lc2_b14;
+	lc2_b14.clk = p14M;
+	-- LC3_B14 LUT 00FD
+	lc3_b14 = (!lc5_b11 & !lc6_a10)
+		# (lc3_b20 & !lc6_a10)
+		# (lc5_b14 & !lc6_a10);
+	-- LC4_B14 LUT CC0F
+	lc4_b14 = (!lc3_b20 & !lc6_a10)
+		# (lc5_b8 & lc6_a10);
+	-- LC5_B14 LUT C0F0
+	lc5_b14 = (lc3_b16 & !lc7_b20)
+		# (lc8_b19 & lc3_b16);
+	-- LC6_B14 LUT 00FF
+	lc6_b14.d = !lc1_b16;
+	lc6_b14.clk = lc4_b6;
+	lc6_b14.clrn = !lc6_b4;
+	-- LC7_B14 LUT CFC0
+	lc7_b14 = (A12 & lc5_b14)
+		# (!lc5_b14 & lc8_b14);
+	-- LC8_B14 LUT FE0E
+	lc8_b14 = (lc3_b20 & !lc6_a10)
+		# (lc2_b16 & !lc6_a10)
+		# (lc6_a10 & lc3_a8);
+	-- LC1_B15 LUT FFF0
+	lc1_b15 = lc5_b15
+		# lc1_b16;
+	-- LC2_B15 LUT CFCC
+	lc2_b15 = lc5_a13
+		# (!lc5_b14 & lc8_b15);
+	-- LC3_B15 LUT 0300
+	lc3_b15 = !lc3_b19 & !lc8_b6 & lc3_b6;
+	-- LC4_B15 LUT F0CC
+	lc4_b15 = (lc6_a10 & !lc4_a4)
+		# (lc4_b15 & lc4_a4);
+	-- LC5_B15 LUT FFFF
+	lc5_b15.d = VCC;
+	lc5_b15.clk = !lc6_b14;
+	lc5_b15.clrn = !lc4_b6;
+	lc5_b15.prn = !lc1_b16;
+	-- LC6_B15 LUT FE0E
+	lc6_b15 = (lc3_b20 & !lc6_a10)
+		# (lc6_b16 & !lc6_a10)
+		# (lc6_a10 & lc8_a9);
+	-- LC7_B15 LUT CFC0
+	lc7_b15 = (A11 & lc5_b14)
+		# (!lc5_b14 & lc6_b15);
+	-- LC8_B15 LUT FC0C
+	lc8_b15 = (lc7_b16 & !lc6_a10)
+		# (lc6_a10 & lc3_b17);
+	-- LC1_B16 LUT F30C
+	lc1_b16.d = (lc5_b16 & !lc6_b16 & !lc1_b16)
+		# (!lc5_b16 & lc1_b16)
+		# (lc6_b16 & lc1_b16);
+	lc1_b16.clk = lc8_b16;
+	lc1_b16.clrn = lc1_b4;
+	-- LC2_B16 LUT 78F0
+	lc2_b16.d = (lc2_b16 & !lc6_b16)
+		# (!lc5_b16 & lc2_b16)
+		# (!lc7_b16 & lc2_b16)
+		# (lc7_b16 & lc5_b16 & !lc2_b16 & lc6_b16);
+	lc2_b16.clk = !lc3_b13;
+	lc2_b16.clrn = !lc3_b4;
+	-- LC3_B16 LUT FFDF
+	lc3_b16 = !lc7_b20
+		# !lc8_b19
+		# lc1_b19
+		# lc1_b4;
+	-- LC4_B16 LUT FF00
+	lc4_b16 = A14;
+	-- LC5_B16 LUT 0FF0
+	lc5_b16.d = (lc7_b16 & !lc5_b16)
+		# (!lc7_b16 & lc5_b16);
+	lc5_b16.clk = !lc3_b13;
+	lc5_b16.clrn = !lc3_b4;
+	-- LC6_B16 LUT 3FC0
+	lc6_b16.d = (lc7_b16 & lc5_b16 & !lc6_b16)
+		# (!lc5_b16 & lc6_b16)
+		# (!lc7_b16 & lc6_b16);
+	lc6_b16.clk = !lc3_b13;
+	lc6_b16.clrn = !lc3_b4;
+	-- LC7_B16 LUT 00FF
+	lc7_b16.d = !lc7_b16;
+	lc7_b16.clk = !lc3_b13;
+	lc7_b16.clrn = !lc3_b4;
+	-- LC8_B16 LUT 0FF0
+	lc8_b16 = (lc8_a12 & !lc3_b13)
+		# (!lc8_a12 & lc3_b13);
+	-- LC1_B17 LUT 0300
+	lc1_b17 = !RD_n & !MREQ_n & lc5_b17;
+	-- LC2_B17 LUT FCFF
+	lc2_b17 = !lc4_a4
+		# RD_n
+		# MREQ_n;
+	-- LC3_B17 LUT 00FF
+	lc3_b17.d = !lc3_b17;
+	lc3_b17.clk = lc8_a5;
+	lc3_b17.clrn = lc4_a11;
+	lc3_b17.prn = lc2_a11;
+	-- LC4_B17 LUT 2A0A
+	lc4_b17 = (lc6_b11 & !lc3_b16)
+		# (lc6_b11 & !lc8_b19 & lc7_b20);
+	-- LC5_B17 LUT FEEE
+	lc5_b17 = lc4_b16
+		# A15
+		# (lc6_a20 & lc2_b17);
+	-- LC6_B17 LUT FFBF
+	lc6_b17 = !lc5_a15
+		# !A15
+		# A13
+		# lc6_a12;
+	-- LC7_B17 LUT 0F00
+	lc7_b17 = !A15 & lc5_a15;
+	-- LC1_B18 LUT F0E2
+	lc1_b18.d = (MD6 & !lc4_b18 & !lc3_b14)
+		# (lc4_b18 & lc8_b18)
+		# (lc8_b18 & lc3_b14);
+	lc1_b18.clk = lc2_b10;
+	-- LC2_B18 LUT 000C
+	lc2_b18.d = MD0 & !lc4_b18 & !lc3_b14;
+	lc2_b18.clk = lc2_b10;
+	-- LC3_B18 LUT F0E2
+	lc3_b18.d = (MD1 & !lc4_b18 & !lc3_b14)
+		# (lc4_b18 & lc2_b18)
+		# (lc2_b18 & lc3_b14);
+	lc3_b18.clk = lc2_b10;
+	-- LC4_B18 LUT BF00
+	lc4_b18 = (!lc7_b20 & lc6_a10)
+		# (!lc2_b14 & lc6_a10)
+		# (lc6_b19 & lc6_a10);
+	-- LC5_B18 LUT F0E2
+	lc5_b18.d = (MD2 & !lc4_b18 & !lc3_b14)
+		# (lc4_b18 & lc3_b18)
+		# (lc3_b18 & lc3_b14);
+	lc5_b18.clk = lc2_b10;
+	-- LC6_B18 LUT F0E2
+	lc6_b18.d = (MD3 & !lc4_b18 & !lc3_b14)
+		# (lc4_b18 & lc5_b18)
+		# (lc5_b18 & lc3_b14);
+	lc6_b18.clk = lc2_b10;
+	-- LC7_B18 LUT F0E2
+	lc7_b18.d = (MD4 & !lc4_b18 & !lc3_b14)
+		# (lc4_b18 & lc6_b18)
+		# (lc6_b18 & lc3_b14);
+	lc7_b18.clk = lc2_b10;
+	-- LC8_B18 LUT F0E2
+	lc8_b18.d = (MD5 & !lc4_b18 & !lc3_b14)
+		# (lc4_b18 & lc7_b18)
+		# (lc7_b18 & lc3_b14);
+	lc8_b18.clk = lc2_b10;
+	-- LC1_B19 LUT 33A0
+	lc1_b19.d = (lc5_b6 & lc5_b19 & !lc1_b19)
+		# (!lc2_b19 & lc1_b19);
+	lc1_b19.clk = lc2_b14;
+	-- LC2_B19 LUT CCC0
+	lc2_b19 = (lc8_b6 & lc3_b6)
+		# (lc8_b6 & lc6_a10);
+	-- LC3_B19 LUT CCA0
+	lc3_b19.d = (lc5_b6 & lc5_b19 & !lc1_b19)
+		# (lc2_b19 & lc1_b19);
+	lc3_b19.clk = lc2_b14;
+	lc3_b19.clrn = !lc7_b20;
+	-- LC4_B19 LUT F033
+	lc4_b19 = (!lc6_b19 & !lc8_b19)
+		# (lc2_b14 & lc8_b19);
+	-- LC5_B19 LUT F0FF
+	lc5_b19 = !lc6_a10
+		# lc3_b6;
+	-- LC6_B19 LUT FF00
+	lc6_b19.d = lc5_b11;
+	lc6_b19.clk = !lc2_b14;
+	-- LC8_B19 LUT F1E0
+	lc8_b19.d = (lc6_b19 & lc8_b19)
+		# (IORQ_n & lc8_b19)
+		# (!lc6_b19 & !IORQ_n & lc6_b5);
+	lc8_b19.clk = lc2_b14;
+	-- LC1_B20 LUT 00FF
+	lc1_b20.d = !lc5_b14;
+	lc1_b20.clk = lc5_b11;
+	lc1_b20.clrn = lc6_a10;
+	-- LC2_B20 LUT C8CC
+	lc2_b20 = (lc4_b20 & !lc1_b17)
+		# (lc5_b7 & lc4_b20)
+		# (lc4_b20 & lc8_b20);
+	-- LC3_B20 LUT 3CF0
+	lc3_b20.d = (lc3_b20 & !lc7_b20)
+		# (!lc5_b11 & lc3_b20)
+		# (lc5_b11 & !lc3_b20 & lc7_b20);
+	lc3_b20.clk = lc2_b14;
+	-- LC4_B20 LUT F3FF
+	lc4_b20 = !lc5_b14
+		# !lc1_b20
+		# lc5_b8;
+	-- LC5_B20 LUT 2A20
+	lc5_b20 = (lc5_b11 & !lc5_b7 & lc5_b14)
+		# (lc5_b11 & !lc5_b14 & lc6_a10);
+	-- LC6_B20 LUT 7FFF
+	lc6_b20 = !A10
+		# !A13
+		# !A11
+		# !A12;
+	-- LC7_B20 LUT 0FF0
+	lc7_b20.d = (lc5_b11 & !lc7_b20)
+		# (!lc5_b11 & lc7_b20);
+	lc7_b20.clk = lc2_b14;
+	-- LC8_B20 LUT 0FFF
+	lc8_b20 = !lc5_b14
+		# !lc5_b11;
+	-- LC1_B21 LUT F000
+	lc1_b21 = lc8_b19 & TRBB;
+	-- LC2_B21 LUT FFFF
+	lc2_b21.d = VCC;
+	lc2_b21.clk = lc7_b21;
+	lc2_b21.clrn = lc6_b21;
+	-- LC3_B21 LUT CFC0
+	lc3_b21 = (lc2_b7 & lc7_b9)
+		# (!lc7_b9 & lc5_b21);
+	-- LC4_B21 LUT AAAA
+	lc4_b21.d = TRBB;
+	lc4_b21.clk = lc2_b21;
+	-- LC5_B21 LUT F0CC
+	lc5_b21 = (lc6_a20 & !lc4_a4)
+		# (lc5_b21 & lc4_a4);
+	-- LC6_B21 LUT 9B74
+	lc6_b21 = (!lc2_b6 & lc8_b19 & !lc6_a10)
+		# (!lc8_b19 & lc3_b6 & !lc6_a10)
+		# (!lc8_b19 & !lc3_b6 & lc6_a10)
+		# (!lc2_b6 & !lc8_b19 & lc6_a10)
+		# (lc2_b6 & lc8_b19 & lc6_a10);
+	-- LC7_B21 LUT F00F
+	lc7_b21 = (!lc8_a12 & !lc1_b16)
+		# (lc8_a12 & lc1_b16);
+END;

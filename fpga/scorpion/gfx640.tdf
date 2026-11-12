@@ -1,0 +1,221 @@
+-- gfx640: Режим 640x200: 14-битный счётчик видеоадреса с загрузкой из регистров скроллинга
+-- Схема GMX "Scorpion", FPGA EPF8452ALC84.
+SUBDESIGN gfx640
+(
+	scrl[7..4],
+	scrh[5..0],
+	h[8..0],
+	hborder,
+	vborder,
+	vsync	: INPUT;
+	o_ga[13..0]	: OUTPUT;
+)
+VARIABLE
+	ga_clk            : LCELL;	-- такт счётчика адреса: байт графики (вне бордюра)
+	ga[13..0]         : DFF;	-- адрес видеопамяти режима 640x200 (14 бит, считает байты)
+	gc[13..1]         : LCELL;	-- такты разрядов счётчика ga (пульсирующий перенос)
+	ga_hi             : LCELL;	-- ga7 & ga9 & ga10
+	ga_end            : DFF;	-- конец экрана 640 (адрес дошёл до предела)
+	ga_lo_clr         : LCELL;	-- сброс бит 0-3 при загрузке (кадр / конец)
+	ga_clr[13..4]     : LCELL;	-- асинхронная загрузка ga из регистров скроллинга: сброс разряда
+	ga_set[13..4]     : LCELL;	-- асинхронная загрузка ga из регистров скроллинга: установка разряда
+BEGIN
+
+	-- ga_clk: такт счётчика адреса: байт графики (вне бордюра)
+	ga_clk = !h1
+		# hborder
+		# vborder;
+
+	-- ga[13..0]: адрес видеопамяти режима 640x200 (14 бит, считает байты)
+	--   ga13: бит 13
+	--   ga12: бит 12
+	--   ga11: бит 11
+	--   ga10: бит 10
+	--   ga9: бит 9
+	--   ga8: бит 8 (загрузка из #7CFD.D0)
+	--   ga7: бит 7
+	--   ga6: бит 6
+	--   ga5: бит 5
+	--   ga4: бит 4 (загрузка из #7AFD.D4)
+	--   ga3: бит 3
+	--   ga2: бит 2
+	--   ga1: бит 1
+	--   ga0: адрес видео 640, бит 0
+	ga[].clk = (gc[], ga_clk);
+	ga[].clrn = (ga_clr[], ga_lo_clr, ga_lo_clr, ga_lo_clr, ga_lo_clr);
+	ga13.prn = ga_set13;
+	ga12.prn = ga_set12;
+	ga11.prn = ga_set11;
+	ga10.prn = ga_set10;
+	ga9.prn = ga_set9;
+	ga8.prn = ga_set8;
+	ga7.prn = ga_set7;
+	ga6.prn = ga_set6;
+	ga5.prn = ga_set5;
+	ga4.prn = ga_set4;
+	ga13.d = !ga13;
+	ga12.d = !ga12;
+	ga11.d = !ga11;
+	ga10.d = !ga10;
+	ga9.d = !ga9;
+	ga8.d = !ga8;
+	ga7.d = !ga7;
+	ga6.d = !ga6;
+	ga5.d = !ga5;
+	ga4.d = !ga4;
+	ga3.d = !ga3;
+	ga2.d = !ga2;
+	ga1.d = !ga1;
+	ga0.d = !ga0;
+
+	-- gc[13..1]: такты разрядов счётчика ga (пульсирующий перенос)
+	--   gc13: такт бита 13
+	--   gc12: такт бита 12
+	--   gc11: такт бита 11
+	--   gc10: такт бита 10
+	--   gc9: такт бита 9
+	--   gc8: такт бита 8
+	--   gc7: такт бита 7
+	--   gc6: такт бита 6
+	--   gc5: такт бита 5
+	--   gc4: такт бита 4
+	--   gc3: такт бита 3
+	--   gc2: такт бита 2
+	--   gc1: такт бита 1 (пульсирующий перенос)
+	gc13 = !ga11
+		# !ga12
+		# !ga10
+		# gc10;
+	gc12 = !ga11
+		# !ga10
+		# !ga9
+		# gc9;
+	gc11 = !ga10
+		# !ga9
+		# !ga8
+		# gc8;
+	gc10 = !ga9
+		# !ga8
+		# !ga7
+		# gc7;
+	gc9 = !ga8
+		# !ga7
+		# !ga6
+		# gc6;
+	gc8 = !ga7
+		# !ga6
+		# !ga5
+		# gc5;
+	gc7 = !ga6
+		# !ga5
+		# !ga4
+		# gc4;
+	gc6 = !ga5
+		# !ga4
+		# !ga3
+		# gc3;
+	gc5 = !ga4
+		# !ga3
+		# !ga2
+		# gc2;
+	gc4 = !ga3
+		# !ga2
+		# !ga1
+		# gc1;
+	gc3 = !ga2
+		# !ga1
+		# !ga0
+		# ga_clk;
+	gc2 = !ga1
+		# !ga0
+		# ga_clk;
+	gc1 = !ga0
+		# ga_clk;
+
+	-- ga_hi: ga7 & ga9 & ga10
+	ga_hi = ga7 & ga9 & ga10;
+
+	-- ga_end: конец экрана 640 (адрес дошёл до предела)
+	ga_end.clk = h1;
+	ga_end.d = ga_hi & ga13 & ga12 & ga11;
+
+	-- ga_lo_clr: сброс бит 0-3 при загрузке (кадр / конец)
+	ga_lo_clr = !ga_end & !vsync;
+
+	-- ga_clr[13..4]: асинхронная загрузка ga из регистров скроллинга: сброс разряда
+	--   ga_clr13: загрузка бита 13: сброс
+	--   ga_clr12: загрузка бита 12: сброс
+	--   ga_clr11: загрузка бита 11: сброс
+	--   ga_clr10: загрузка бита 10: сброс
+	--   ga_clr9: загрузка бита 9: сброс
+	--   ga_clr8: загрузка бита 8: сброс
+	--   ga_clr7: загрузка бита 7: сброс
+	--   ga_clr6: загрузка бита 6: сброс
+	--   ga_clr5: загрузка бита 5: сброс
+	--   ga_clr4: асинхр. загрузка бита 4: сброс
+	ga_clr13 = (!ga_end & !vsync)
+		# (!ga_end & scrh5);
+	ga_clr12 = (!ga_end & !vsync)
+		# (!ga_end & scrh4);
+	ga_clr11 = (!ga_end & !vsync)
+		# (!ga_end & scrh3);
+	ga_clr10 = (!ga_end & !vsync)
+		# (!ga_end & scrh2);
+	ga_clr9 = (!ga_end & !vsync)
+		# (!ga_end & scrh1);
+	ga_clr8 = (!ga_end & !vsync)
+		# (!ga_end & scrh0);
+	ga_clr7 = (!ga_end & !vsync)
+		# (!ga_end & scrl7);
+	ga_clr6 = (!ga_end & !vsync)
+		# (!ga_end & scrl6);
+	ga_clr5 = (!ga_end & !vsync)
+		# (!ga_end & scrl5);
+	ga_clr4 = (!ga_end & !vsync)
+		# (!ga_end & scrl4);
+
+	-- ga_set[13..4]: асинхронная загрузка ga из регистров скроллинга: установка разряда
+	--   ga_set13: загрузка бита 13: установка
+	--   ga_set12: загрузка бита 12: установка
+	--   ga_set11: загрузка бита 11: установка
+	--   ga_set10: загрузка бита 10: установка
+	--   ga_set9: загрузка бита 9: установка
+	--   ga_set8: загрузка бита 8: установка
+	--   ga_set7: загрузка бита 7: установка
+	--   ga_set6: загрузка бита 6: установка
+	--   ga_set5: загрузка бита 5: установка
+	--   ga_set4: асинхр. загрузка бита 4: установка
+	ga_set13 = !vsync
+		# !scrh5
+		# ga_end;
+	ga_set12 = !vsync
+		# !scrh4
+		# ga_end;
+	ga_set11 = !vsync
+		# !scrh3
+		# ga_end;
+	ga_set10 = !vsync
+		# !scrh2
+		# ga_end;
+	ga_set9 = !vsync
+		# !scrh1
+		# ga_end;
+	ga_set8 = !vsync
+		# !scrh0
+		# ga_end;
+	ga_set7 = !vsync
+		# !scrl7
+		# ga_end;
+	ga_set6 = !vsync
+		# !scrl6
+		# ga_end;
+	ga_set5 = !vsync
+		# !scrl5
+		# ga_end;
+	ga_set4 = !vsync
+		# !scrl4
+		# ga_end;
+
+	-- выходы модуля
+	o_ga[] = ga[];
+END;

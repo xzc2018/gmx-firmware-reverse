@@ -1,0 +1,4 @@
+3800 key 4 150
+8500 shot pentagon_menu.png
+8700 magic 100
+10500 shot pentagon_trdos.png

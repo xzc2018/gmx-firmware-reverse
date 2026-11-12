@@ -1,0 +1,7 @@
+build/
+banks/*.bin
+bitstream/*.rbf
+bitstream/*.ttf
+bitstream/*.pof
+/gmx_flash_physical.bin
+vlsim/out/

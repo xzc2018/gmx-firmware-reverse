@@ -1,0 +1,2 @@
+3800 key ENTER 150
+30000 shot scorpion_menu.png

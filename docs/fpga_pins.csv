@@ -1,0 +1,85 @@
+pin;fpga_function;net;note
+1;I/O37;G;digital Green to video connector X1 (schematic shows pin near I/O37/TDO; 47 is GND)
+2;I/O25/DATA7;DB7;Z80 data bus (buffered side, via DD11)
+3;I/O38;R;digital Red
+4;I/O24/DATA6;DB6;
+5;GND;;
+6;I/O23/DATA5;DB5;
+7;I/O22/DATA4;DB4;
+8;I/O21/DATA3;DB3;
+9;I/O20/DATA2;DB2;
+10;DCLK;DCLK;configuration clock (from CPLD)
+11;CONF_DONE;CONFD;
+12;IN0 (dedicated input);14M;14 MHz clock
+13;I/O19/DATA1;DB1;
+14;I/O18/DATA0;DB0;also serial config DATA0
+15;I/O39;MA0;SIMM address
+16;I/O40;MA1;
+17;VCCINT;;
+18;I/O41;MA2;
+19;I/O42;MA3;
+20;I/O43;MA4;
+21;I/O44;MA5;
+22;I/O45;MA6;
+23;I/O46;MA7;
+24;I/O47;MA8;
+25;I/O48;MA9;
+26;GND;;
+27;I/O49;RAS/;SIMM RAS
+28;I/O30/CS;CAS0/;SIMM bank 0 CAS
+29;I/O29/nCS;CAS1;SIMM bank 1 CAS (via DD10.1 inverter)
+30;I/O26/nWS;WE/;SIMM WE
+31;IN1 (dedicated input);MD1;SIMM data bit 1
+32;nSTATUS;NSTAT;
+33;nCONFIG;NCONF;
+34;I/O50;MD2;SIMM data
+35;I/O51;MD3;
+36;I/O52;MD4;
+37;I/O53;MD5;
+38;VCCINT;;
+39;I/O54;MD6;
+40;I/O55;MD0;
+41;I/O56;WAIT/;to Z80 WAIT via diode VD6
+42;I/O57;RD/;Z80
+43;I/O35/TMS;IORQ/;Z80
+44;I/O36/TCK;M1;Z80
+45;I/O34/TDI;MG;Magic button
+46;I/O58;MREQ/;Z80
+47;GND;;
+48;I/O27/nRS;RAM/;
+49;I/O28/RDCLK;CLKCPU;Z80 clock output
+50;I/O32/CLKUSR;EBUF;data buffer DD11 enable
+51;I/O17/ADD17;INT;Z80 INT
+52;VCCINT (TRST);;
+53;MSEL1;MSEL1;
+54;IN2 (dedicated input);MD7;SIMM data bit 7
+55;I/O16/ADD16;TRBB;Turbo button / LED
+56;I/O15/ADD15;A15;Z80 address
+57;I/O14/ADD14;A14;
+58;I/O13/ADD13;WRBUF;latch DD9 clock (write buffer)
+59;VCCINT;;
+60;I/O12/ADD12;A12;
+61;I/O11/ADD11;A11;
+62;I/O10/ADD10;A10;
+63;I/O9/ADD9;A9;
+64;I/O8/ADD8;A8;
+65;I/O7/ADD7;A7;
+66;I/O6/ADD6;A6;
+67;I/O5/ADD5;A5;
+68;GND;;
+69;I/O4/ADD4;A4;
+70;I/O3/ADD3;A3;
+71;I/O2/ADD2;A2;
+72;I/O1/ADD1;A1;
+73;IN3 (dedicated input);RESET;
+74;MSEL0;;tied low (schematic)
+75;nSP;NSP;
+76;I/O0/ADD0;A0;
+77;I/O31/RDYnBUSY;A13;
+78;I/O33/SDOUT;RDR/;read strobe for DD5 latch / ROM
+79;I/O59;WROUT/;Z80 WR (buffered)
+80;VCCINT;;
+81;I/O60;VS;vertical sync
+82;I/O61;SYNC;composite sync
+83;I/O62;I;Intensity (bright)
+84;I/O63;B;digital Blue

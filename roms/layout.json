@@ -1,0 +1,173 @@
+{
+  "image": {
+    "size": 524288,
+    "reference_sha256": "d902fa3f79de3094887c87ce909461cada5da9199459d79bfff21400fee99713",
+    "note": "pages are in logical order (as seen by the Z80 / written by the GMX loader)"
+  },
+  "banks": [
+    {
+      "bank": 0,
+      "name": "bank0_loader_fpga",
+      "parts": [
+        {
+          "at": "0x0000",
+          "file": "bank0/boot_0000.bin",
+          "note": "loader boot block; page-0 CRC at 0x000E is recomputed"
+        },
+        {
+          "at": "0x2000",
+          "scheme": {
+            "number": 1,
+            "name": "Start Sch",
+            "date": "17.02.99",
+            "port_xx00": "0xFF",
+            "port_7EFD": "0xFF",
+            "bitstream": "scorpion.rbf",
+            "tail": "00000000",
+            "original_crc": "0xD61F"
+          }
+        },
+        {
+          "at": "0x4000",
+          "scheme": {
+            "number": 6,
+            "name": "DK_test",
+            "date": "17.02.99",
+            "port_xx00": "0x10",
+            "port_7EFD": "0x20",
+            "bitstream": "scorpion.rbf",
+            "tail": "00000000",
+            "original_crc": "0x5021"
+          }
+        },
+        {
+          "at": "0x6000",
+          "scheme": {
+            "number": 7,
+            "name": "Scheme 7",
+            "date": "17.02.99",
+            "port_xx00": "0xFF",
+            "port_7EFD": "0xFF",
+            "bitstream": "scorpion.rbf",
+            "tail": "00000000",
+            "original_crc": "0xFCE7"
+          }
+        },
+        {
+          "at": "0x8000",
+          "scheme": {
+            "number": 4,
+            "name": "PentaGON",
+            "date": "22.01.99",
+            "port_xx00": "0xE0",
+            "port_7EFD": "0x10",
+            "bitstream": "pentagon.rbf",
+            "tail": "00000000",
+            "original_crc": "0x077B"
+          }
+        },
+        {
+          "at": "0xA000",
+          "scheme": {
+            "number": 5,
+            "name": "Komposit",
+            "date": "17.02.99",
+            "port_xx00": "0x60",
+            "port_7EFD": "0x10",
+            "bitstream": "scorpion.rbf",
+            "tail": "00000000",
+            "original_crc": "0x68E5"
+          }
+        },
+        {
+          "at": "0xC000",
+          "scheme": {
+            "number": 2,
+            "name": "Work Sch",
+            "date": "17.02.99",
+            "port_xx00": "0xFF",
+            "port_7EFD": "0xFF",
+            "bitstream": "scorpion.rbf",
+            "tail": "00000000",
+            "original_crc": "0x1805"
+          }
+        },
+        {
+          "at": "0xE000",
+          "file": "bank0/service_lib_E000.bin",
+          "note": "service library (org 0x2000); CRC of 0xE002..0xFFFF in its first 2 bytes, recomputed"
+        }
+      ]
+    },
+    {
+      "bank": 1,
+      "name": "bank1_pentagon_128_trdos",
+      "pages": [
+        "bank1/0_128_basic_sinclair.bin",
+        "bank1/1_48_basic_sinclair.bin",
+        "bank1/2_trdos_503.bin",
+        "bank1/2_trdos_503.bin"
+      ]
+    },
+    {
+      "bank": 2,
+      "name": "bank2_diag_test",
+      "pages": [
+        "bank2/0_diag_0.bin",
+        "bank2/1_diag_1.bin",
+        "bank2/1_diag_1.bin",
+        "bank2/3_diag_3.bin"
+      ]
+    },
+    {
+      "bank": 3,
+      "name": "bank3_diag_test_copy",
+      "pages": [
+        "bank2/0_diag_0.bin",
+        "bank2/1_diag_1.bin",
+        "bank2/1_diag_1.bin",
+        "bank2/3_diag_3.bin"
+      ]
+    },
+    {
+      "bank": 4,
+      "name": "bank4_scorpion_zs256",
+      "pages": [
+        "bank4/0_128_basic_scorpion.bin",
+        "bank4/1_48_basic_scorpion.bin",
+        "bank4/2_shadow_service_monitor.bin",
+        "bank4/3_trdos_503_scorpion.bin"
+      ]
+    },
+    {
+      "bank": 5,
+      "name": "bank5_ext_pages_A",
+      "pages": [
+        "bank5/0_ext_A_0.bin",
+        "bank5/1_ext_A_1.bin",
+        "bank5/2_ext_A_2.bin",
+        "bank5/3_ext_A_3.bin"
+      ]
+    },
+    {
+      "bank": 6,
+      "name": "bank6_ext_pages_B",
+      "pages": [
+        "bank6/0_ext_B_0.bin",
+        "bank6/1_ext_B_1.bin",
+        "bank6/2_ext_B_2.bin",
+        "bank6/3_ext_B_3.bin"
+      ]
+    },
+    {
+      "bank": 7,
+      "name": "bank7_empty_pages",
+      "pages": [
+        "bank7/0_template_0.bin",
+        "bank7/1_template_1.bin",
+        "bank7/2_template_2.bin",
+        "bank7/3_template_3.bin"
+      ]
+    }
+  ]
+}

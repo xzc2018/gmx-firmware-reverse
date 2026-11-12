@@ -1,0 +1,231 @@
+-- video_timing: Развёртка: счётчики строк/кадров, синхроимпульсы, INT, мигание FLASH
+-- Схема GMX "Scorpion", FPGA EPF8452ALC84.
+SUBDESIGN video_timing
+(
+	clk7,
+	turbo,
+	graphic,
+	st_pent	: INPUT;
+	o_h[8..0],
+	o_hborder,
+	o_hs_pulse,
+	o_csync,
+	o_v[7..0],
+	o_vborder,
+	o_vsync,
+	o_int_ff,
+	o_flash	: OUTPUT;
+)
+VARIABLE
+	h[8..0]           : DFF;	-- счётчик точек строки (7 МГц)
+	hc3               : LCELL;	-- перенос h0..h3
+	hc5               : LCELL;	-- перенос h0..h5
+	hborder           : DFF;	-- горизонтальный бордюр/гашение
+	hrst              : DFF;	-- сброс счётчика точек (конец строки)
+	hend_a            : LCELL;	-- условие конца строки (зависит от Graphic)
+	hend_b            : LCELL;	-- условие конца строки
+	hs_cond           : LCELL;	-- условие строчного импульса
+	hs_ff             : DFF;	-- триггер строчного импульса
+	line_clk          : LCELL;	-- такт строки (для счётчика строк)
+	hs_pulse          : DFF;	-- строчный синхроимпульс
+	csync_h           : DFF;	-- строчная составляющая синхросмеси
+	csync             : LCELL;	-- синхросмесь -> SYNC
+	v[7..0]           : DFF;	-- счётчик строк кадра
+	v4to6             : LCELL;	-- v4 & v5 & v6
+	vend_a            : LCELL;	-- условие конца кадра (312/320 строк по ST_PENT)
+	vend_b            : LCELL;	-- условие конца кадра
+	vend_c            : LCELL;	-- условие конца кадра
+	vborder           : DFF;	-- вертикальный бордюр/гашение (старший бит счёта строк)
+	vrst              : DFF;	-- сброс счётчика строк (конец кадра)
+	vs_clk            : LCELL;	-- такт кадрового импульса: v3 xor ST_PENT
+	vsync             : DFF;	-- кадровый синхроимпульс -> VS
+	int_trig          : LCELL;	-- момент INT: начало или конец КСИ (ST_PENT)
+	int_ff            : DFF;	-- запрос прерывания -> INT
+	int_end           : LCELL;	-- окончание импульса INT по счётчику точек
+	fr[3..0]          : DFF;	-- делитель кадров (для FLASH)
+	flash             : DFF;	-- мигание FLASH (кадры / 32)
+BEGIN
+
+	-- h[8..0]: счётчик точек строки (7 МГц)
+	--   h8: бит 8
+	--   h7: бит 7
+	--   h6: бит 6
+	--   h5: бит 5
+	--   h4: бит 4
+	--   h3: бит 3
+	--   h2: бит 2
+	--   h1: бит 1
+	--   h0: счётчик точек, бит 0 (7 МГц / 2)
+	h[].clk = clk7;
+	h8.clrn = !hrst;
+	h7.clrn = !hrst;
+	h6.clrn = !hrst;
+	h8.d = h8 $ (h6 & h7 & hc5);
+	h7.d = h7 $ (h6 & hc5);
+	h6.d = h6 $ (h4 & h5 & hc3);
+	h5.d = h5 $ (h4 & hc3);
+	h4.d = h4 $ hc3;
+	h3.d = h3 $ (h0 & h1 & h2);
+	h2.d = h2 $ (h0 & h1);
+	h1.d = h1 $ h0;
+	h0.d = !h0;
+
+	-- hc3: перенос h0..h3
+	hc3 = h3 & h0 & h2 & h1;
+
+	-- hc5: перенос h0..h5
+	hc5 = hc3 & h5 & h4;
+
+	-- hborder: горизонтальный бордюр/гашение
+	hborder.clk = clk7;
+	hborder.d = (h8 & hend_b & !hborder)
+		# (!hend_a & hborder);
+
+	-- hrst: сброс счётчика точек (конец строки)
+	hrst.clk = clk7;
+	hrst.clrn = !h1;
+	hrst.d = (h8 & hend_b & !hborder)
+		# (hend_a & hborder);
+
+	-- hend_a: условие конца строки (зависит от Graphic)
+	hend_a = (h7 & h6)
+		# (h7 & graphic);
+
+	-- hend_b: условие конца строки
+	hend_b = !graphic
+		# h6;
+
+	-- hs_cond: условие строчного импульса
+	hs_cond = !hrst & !h7 & h6;
+
+	-- hs_ff: триггер строчного импульса
+	hs_ff.clk = h5;
+	hs_ff.clrn = hborder;
+	hs_ff.d = !h6;
+
+	-- line_clk: такт строки (для счётчика строк)
+	line_clk = (hs_cond & hborder & !graphic)
+		# (hs_ff & hborder & graphic);
+
+	-- hs_pulse: строчный синхроимпульс
+	hs_pulse.clk = h4;
+	hs_pulse.clrn = !line_clk;
+	hs_pulse.d = !vsync;
+
+	-- csync_h: строчная составляющая синхросмеси
+	csync_h.clk = !hs_pulse;
+	csync_h.clrn = !h4;
+	csync_h.prn = !vsync;
+	csync_h.d = VCC;
+
+	-- csync: синхросмесь -> SYNC
+	csync = csync_h
+		# vsync;
+
+	-- v[7..0]: счётчик строк кадра
+	--   v7: бит 7
+	--   v6: бит 6
+	--   v5: бит 5
+	--   v4: бит 4
+	--   v3: бит 3
+	--   v2: бит 2
+	--   v1: бит 1
+	--   v0: счётчик строк, бит 0
+	v7.clk = !v3;
+	v6.clk = !v3;
+	v5.clk = !v3;
+	v4.clk = !v3;
+	v3.clk = line_clk;
+	v2.clk = line_clk;
+	v1.clk = line_clk;
+	v0.clk = line_clk;
+	v[].clrn = !vrst;
+	v7.d = v7 $ (v4 & v5 & v6);
+	v6.d = v6 $ (v4 & v5);
+	v5.d = v5 $ v4;
+	v4.d = !v4;
+	v3.d = v3 $ (v0 & v1 & v2);
+	v2.d = v2 $ (v0 & v1);
+	v1.d = v1 $ v0;
+	v0.d = !v0;
+
+	-- v4to6: v4 & v5 & v6
+	v4to6 = v4 & v5 & v6;
+
+	-- vend_a: условие конца кадра (312/320 строк по ST_PENT)
+	vend_a = (vend_c & !graphic)
+		# (vend_c & v3 & !vborder);
+
+	-- vend_b: условие конца кадра
+	vend_b = (!st_pent & v4to6 & v3)
+		# (v4to6 & graphic);
+
+	-- vend_c: условие конца кадра
+	IF vborder THEN vend_c = st_pent; ELSE vend_c = v6; END IF;
+
+	-- vborder: вертикальный бордюр/гашение (старший бит счёта строк)
+	vborder.clk = !line_clk;
+	vborder.d = (vend_a & v7 & !vborder)
+		# (!vend_b & !v7 & vborder)
+		# (!vend_a & !vend_b & vborder);
+
+	-- vrst: сброс счётчика строк (конец кадра)
+	vrst.clk = !line_clk;
+	vrst.clrn = hborder;
+	vrst.d = (vend_a & v7)
+		# (vend_b & vborder);
+
+	-- vs_clk: такт кадрового импульса: v3 xor ST_PENT
+	vs_clk = (st_pent & !v3)
+		# (!st_pent & v3);
+
+	-- vsync: кадровый синхроимпульс -> VS
+	vsync.clk = vs_clk;
+	vsync.clrn = vborder;
+	vsync.d = vsync $ (v5 & !v6);
+
+	-- int_trig: момент INT: начало или конец КСИ (ST_PENT)
+	int_trig = (!st_pent & !vsync)
+		# (st_pent & vsync);
+
+	-- int_ff: запрос прерывания -> INT
+	int_ff.clk = int_trig;
+	int_ff.clrn = int_end;
+	int_ff.d = VCC;
+
+	-- int_end: окончание импульса INT по счётчику точек
+	int_end = (!h5 & turbo & !graphic)
+		# (!turbo & h6 & !graphic)
+		# (!turbo & !h6 & graphic)
+		# (!h5 & !turbo & graphic)
+		# (h5 & turbo & graphic);
+
+	-- fr[3..0]: делитель кадров (для FLASH)
+	--   fr3: бит 3
+	--   fr2: бит 2
+	--   fr1: бит 1
+	--   fr0: делитель кадров, бит 0
+	fr3.clk = fr2;
+	fr2.clk = fr1;
+	fr1.clk = fr0;
+	fr0.clk = !vsync;
+	fr3.d = !fr3;
+	fr2.d = !fr2;
+	fr1.d = !fr1;
+	fr0.d = !fr0;
+
+	-- flash: мигание FLASH (кадры / 32)
+	flash.clk = fr3;
+	flash.d = !flash;
+
+	-- выходы модуля
+	o_h[] = h[];
+	o_hborder = hborder;
+	o_hs_pulse = hs_pulse;
+	o_csync = csync;
+	o_v[] = v[];
+	o_vborder = vborder;
+	o_vsync = vsync;
+	o_int_ff = int_ff;
+	o_flash = flash;
+END;

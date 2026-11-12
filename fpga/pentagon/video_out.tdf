@@ -1,0 +1,160 @@
+-- video_out: Видеовыход: сдвиговый регистр пикселей, атрибуты, бордюр, RGBI
+-- Схема GMX "PentaGON", FPGA EPF8452ALC84.
+SUBDESIGN video_out
+(
+	MD[7..0],
+	p14M,
+	clk7,
+	ras,
+	pix_clk,
+	graphic,
+	brd[2..0],
+	we,
+	vid_slot,
+	h[8..0],
+	hborder,
+	blank_n,
+	vborder,
+	flash	: INPUT;
+	o_at_d[4..1],
+	o_out_g,
+	o_out_r,
+	o_out_b,
+	o_out_i	: OUTPUT;
+)
+VARIABLE
+	px[7..0]          : DFF;	-- сдвиговый регистр пикселей, загружается из MD7..MD0
+	pxd[3..1]         : DFF;	-- задержка пикселя до совмещения с атрибутом
+	pixel             : DFF;	-- текущая точка (задержана под атрибут)
+	px_sh_gfx         : LCELL;	-- сдвиг регистра пикселей (Graphic); при 0 обоих сдвигов - загрузка
+	px_sh_zx          : LCELL;	-- сдвиг регистра пикселей (ZX)
+	at_d[4..1]        : DFF;	-- задержка такта загрузки атрибута (по 14M)
+	attr_clk          : LCELL;	-- такт регистра атрибутов
+	act               : DFF;	-- активная область (не бордюр), по такту атрибута
+	at_flash          : DFF;	-- атрибут FLASH (MD7)
+	at_bright         : DFF;	-- атрибут BRIGHT (MD6)
+	at_ink[2..0]      : DFF;	-- цвет INK (бит 2..0 = B, R, G)
+	at_pap[2..0]      : DFF;	-- цвет PAPER (бит 2..0 = B, R, G)
+	ink_sel           : LCELL;	-- точка цвета INK: pixel xor (FLASH & мигание)
+	col[2..0]         : LCELL;	-- цвет текущей точки (бит 2..0 = B, R, G)
+	out_g             : LCELL;	-- -> G: цвет точки или бордюр
+	out_r             : LCELL;	-- -> R
+	out_b             : LCELL;	-- -> B
+	out_i             : LCELL;	-- -> I (яркость)
+BEGIN
+
+	-- px[7..0]: сдвиговый регистр пикселей, загружается из MD7..MD0
+	--   px7: бит 7 (MD7) - выход регистра
+	--   px6: бит 6 (MD6)
+	--   px5: бит 5 (MD5)
+	--   px4: бит 4 (MD4)
+	--   px3: бит 3 (MD3)
+	--   px2: бит 2 (MD2)
+	--   px1: бит 1 (MD1)
+	--   px0: сдвиговый регистр пикселей, бит 0 (MD0)
+	px[].clk = pix_clk;
+	IF !px_sh_gfx & !px_sh_zx THEN
+		px[].d = MD[];
+	ELSE
+		px[].d = (px[6..0], GND);
+	END IF;
+
+	-- pxd[3..1]: задержка пикселя до совмещения с атрибутом
+	--   pxd3: задержка 3
+	--   pxd2: задержка 2
+	--   pxd1: задержка пикселя 1
+	pxd[].clk = pix_clk;
+	pxd[].d = (pxd[2..1], px7);
+
+	-- pixel: текущая точка (задержана под атрибут)
+	pixel.clk = pix_clk;
+	pixel.d = pxd3;
+
+	-- px_sh_gfx: сдвиг регистра пикселей (Graphic); при 0 обоих сдвигов - загрузка
+	px_sh_gfx = (!clk7 & graphic)
+		# (!h1 & graphic)
+		# (ras & graphic);
+
+	-- px_sh_zx: сдвиг регистра пикселей (ZX)
+	px_sh_zx = (!vid_slot & !graphic)
+		# (!h0 & !graphic)
+		# (h2 & !graphic);
+
+	-- at_d[4..1]: задержка такта загрузки атрибута (по 14M)
+	--   at_d4: ступень 4
+	--   at_d3: ступень 3
+	--   at_d2: ступень 2
+	--   at_d1: задержка загрузки атрибута, ступень 1 (14M)
+	at_d[].clk = p14M;
+	at_d4.clrn = !we;
+	at_d4.d = !at_d3;
+	at_d3.d = at_d2;
+	at_d2.d = at_d1;
+	IF !px_sh_zx THEN at_d1.d = px_sh_gfx; ELSE at_d1.d = VCC; END IF;
+
+	-- attr_clk: такт регистра атрибутов
+	IF graphic THEN attr_clk = at_d4; ELSE attr_clk = !h2; END IF;
+
+	-- act: активная область (не бордюр), по такту атрибута
+	act.clk = attr_clk;
+	act.d = !hborder & !vborder;
+
+	-- at_flash: атрибут FLASH (MD7)
+	at_flash.clk = attr_clk;
+	at_flash.d = MD7;
+
+	-- at_bright: атрибут BRIGHT (MD6)
+	at_bright.clk = attr_clk;
+	at_bright.d = MD6;
+
+	-- at_ink[2..0]: цвет INK (бит 2..0 = B, R, G)
+	--   at_ink2: INK бит 2 (MD2, B)
+	--   at_ink1: INK бит 1 (MD1, R)
+	--   at_ink0: INK бит 0 (MD0, G)
+	at_ink[].clk = attr_clk;
+	at_ink[].d = MD[2..0];
+
+	-- at_pap[2..0]: цвет PAPER (бит 2..0 = B, R, G)
+	--   at_pap2: PAPER бит 2 (MD5, B)
+	--   at_pap1: PAPER бит 1 (MD4, R)
+	--   at_pap0: PAPER бит 0 (MD3, G)
+	at_pap[].clk = attr_clk;
+	at_pap[].d = MD[5..3];
+
+	-- ink_sel: точка цвета INK: pixel xor (FLASH & мигание)
+	ink_sel = (pixel & !flash)
+		# (!at_flash & pixel)
+		# (at_flash & !pixel & flash);
+
+	-- col[2..0]: цвет текущей точки (бит 2..0 = B, R, G)
+	--   col2: цвет точки, бит 2 (B)
+	--   col1: цвет точки, бит 1 (R)
+	--   col0: цвет точки, бит 0 (G): INK/PAPER
+	IF ink_sel THEN
+		col[] = at_ink[];
+	ELSE
+		col[] = at_pap[];
+	END IF;
+
+	-- out_g: -> G: цвет точки или бордюр
+	out_g = (brd0 & !act & blank_n)
+		# (act & blank_n & col0);
+
+	-- out_r: -> R
+	out_r = (brd1 & !act & blank_n)
+		# (act & blank_n & col1);
+
+	-- out_b: -> B
+	out_b = (brd2 & !act & blank_n)
+		# (act & blank_n & col2);
+
+	-- out_i: -> I (яркость)
+	out_i = at_bright & act & blank_n;
+
+	-- выходы модуля
+	o_at_d[] = at_d[];
+	o_out_g = out_g;
+	o_out_r = out_r;
+	o_out_b = out_b;
+	o_out_i = out_i;
+END;

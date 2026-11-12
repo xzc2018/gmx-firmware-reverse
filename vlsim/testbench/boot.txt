@@ -1,0 +1,4 @@
+600 key CS 2500
+600 key 0 2500
+2000 shot loader_prompt.png
+3650 shot loader_menu.png

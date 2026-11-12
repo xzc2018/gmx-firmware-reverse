@@ -1,0 +1,212 @@
+-- gmx_cpld: схема CPLD GMX (EPM7064SLC44, DD13). Описание: docs/CPLD_EPM7064S.md.
+--
+-- Функции:
+--   * порт xx00 (CONF0..2, RECONF, FIXROM, BLKEXT, BLKEX2): номер схемы FLEX, nCONFIG FLEX,
+--     блокировка портов GMX;
+--   * порт #7EFD (EWR, Vpp, MagEnable, A16..A18 Flash), строб записи во Flash WEFL;
+--   * копии битов ПЗУ из #7FFD (ROM1, BLKPK1) и #1FFD (BLK1, ROM2, TRDOS), флаг теневого режима
+--     (выборка команды из 3Dxx, кнопка Magic) -> адресные биты Flash CS27/CS1 (страница ПЗУ);
+--   * при CONF_DONE = 0: адрес блока схемы во Flash (A13, CS27, CS1);
+--   * управление буфером данных DD11 (EO, DIR);
+--   * последовательное чтение порта xx00 через #78FD (один бит за чтение).
+--
+-- Регистры портов тактируются фронтом WR/ (вывод 43, глобальный такт), то есть концом цикла
+-- записи. Цикл записи в порт: IORQ/ = 0 при M1/ = 1.
+--
+-- Адрес Flash 28F400 (байтовый режим): биты 0..13 = A0..A13 Z80, бит 14 = CS27, бит 15 = CS1,
+-- биты 16..18 = RA16..RA18. Логическая страница ПЗУ p (порядок страниц в образе gmx.rom)
+-- выдаётся как CS27 = p0, CS1 = p1 xor p0; в микросхеме страницы 1 и 3 каждого банка
+-- переставлены относительно образа.
+
+SUBDESIGN gmx_cpld
+(
+	RST_DLY       : INPUT;	-- pin 1   задержанный RESET (0 = сброс)
+	MG            : INPUT;	-- pin 2   кнопка Magic (0 = нажата)
+	WR_n          : INPUT;	-- pin 43  WR/ Z80, глобальный такт
+	CONFD         : INPUT;	-- pin 44  CONF_DONE FLEX (1 = схема загружена)
+	M1_n          : INPUT;	-- pin 41  M1/ Z80 (цепь "M1" на схеме)
+	IORQ_n        : INPUT;	-- pin 40  IORQ/
+	MREQ_n        : INPUT;	-- pin 29  MREQ/
+	RD_n          : INPUT;	-- pin 31  RD/
+	A15, A14      : INPUT;	-- pin 19, 18
+	A12, A11, A10 : INPUT;	-- pin 16, 14, 13
+	A9, A8, A5    : INPUT;	-- pin 12, 11, 9
+	A1, A0        : INPUT;	-- pin 8, 7
+	A13           : BIDIR;	-- pin 17  вход A13; пока CONF_DONE = 0 - выход: A13 Flash для загрузки FLEX
+	D[6..0]       : INPUT;	-- выводы: D6=32, D5=33, D4=34, D3=36, D2=37, D1=38, D0=39 (D7 к CPLD не подключён)
+	NCONF         : OUTPUT;	-- pin 4   nCONFIG FLEX
+	EO            : OUTPUT;	-- pin 5   разрешение буфера DD11 (0 = открыт)
+	DIR           : OUTPUT;	-- pin 6   направление DD11 (1 = DB -> Z80)
+	CS27          : OUTPUT;	-- pin 20  бит 14 адреса Flash
+	CS1           : OUTPUT;	-- pin 21  бит 15 адреса Flash
+	RA[18..16]    : OUTPUT;	-- выводы: RA18=26, RA17=25, RA16=24 - банк 64 КБ во Flash
+	WEFL          : OUTPUT;	-- pin 27  WE# Flash
+	EVPP          : OUTPUT	-- pin 28  включение +12 В (Vpp) Flash
+)
+VARIABLE
+	-- порт xx00 (RESET сбрасывает только BLKEXT/BLKEX2 при FIXROM = 0 и устанавливает nCONFIG)
+	conf[2..0]   : DFFE;	-- D0..D2 CONF0..2: номер схемы FLEX
+	nconf_r      : DFFE;	-- D3 RECONF, хранится инверсно: nCONFIG = !RECONF
+	reconf       : DFFE;	-- D3 RECONF, копия для чтения через #78FD
+	fixrom       : DFFE;	-- D4 FIXROM: фиксирует A16..A18 и не даёт RESET сбросить BLKEXT/BLKEX2
+	blkext       : DFFE;	-- D5 BLKEXT: блокирует порты GMX (#7EFD, #78FD, #7AFD)
+	blkex2       : DFFE;	-- D6 BLKEX2: блокирует ещё #1FFD, #7FFD декодируется по A15 = 0
+	blkext_rb    : DFFE;	-- D5, копия без сброса (для чтения)
+	blkex2_rb    : DFFE;	-- D6, копия без сброса (для чтения)
+	warm         : TFF;	-- 1 после первого чтения #7AFD; сбрасывается только при включении питания
+	-- порт #7EFD
+	ewr          : DFFE;	-- D0 EWR: разрешение записи во Flash
+	vpp          : DFFE;	-- D1 Vpp: +12 В на Flash
+	mgen         : DFFE;	-- D2 MagEnable: 1 = кнопка Magic заблокирована и BLKPK1 не действует
+	bank[2..0]   : DFFE;	-- D4..D6 A16..A18 Flash
+	-- копии битов Scorpion, нужные для выбора страницы ПЗУ
+	blk1         : DFFE;	-- #1FFD.D0 BLK1: ОЗУ вместо ПЗУ в 0000-3FFF
+	rom2         : DFFE;	-- #1FFD.D1 ROM2: ПЗУ теневого монитора
+	trdos        : DFFE;	-- #1FFD.D2 TRDOS: принудительно ПЗУ TR-DOS
+	rom1         : DFFE;	-- #7FFD.D4 ROM1: 0 = ZX128, 1 = ZX48
+	blkpk1       : DFFE;	-- #7FFD.D5 BLKPK1: блокировка записи в #7FFD
+	-- теневой режим (TR-DOS / Magic)
+	trap_n       : DFF;	-- 0 = выборка команды из 3D00-3DFF при ROM1 = 1 (включение TR-DOS)
+	mg_n         : DFFE;	-- кнопка Magic, опрошенная при выборке команды из ОЗУ (0 = нажата)
+	shadow       : DFF;	-- 1 = теневой режим: ПЗУ TR-DOS (при ROM1) или теневого монитора
+	mg_idle      : DFF;	-- 0 после приёма Magic; 1 после RESET или обращения к порту xxFF вне теневого режима
+	-- последовательное чтение xx00
+	rb[7..0]     : DFFE;	-- снимок xx00 при RESET; rb0 выдаётся в EO при чтении #78FD, затем сдвиг
+
+	io, io_rd, wr00, wr7efd, wr1ffd, wr7ffd, rd78fd, rd7afd : NODE;
+	sel00, selfd, ext_on, sel7efd, sel78fd, sel7afd, sel1ffd, sel7ffd : NODE;
+	rb_ld        : NODE;
+	rb_src[7..0] : NODE;
+	rom_area, ram_at0, mem_rd, fetch_ram, rom_rd, sel3d : NODE;
+	page[1..0]   : NODE;	-- логическая страница ПЗУ при работе
+	cfg_page[1..0], cfg_a13 : NODE;	-- адрес блока схемы при загрузке FLEX
+	fpage[1..0]  : NODE;
+BEGIN
+	-- ===== циклы Z80 и дешифрация портов =====
+	io      = !IORQ_n & M1_n;			-- обращение к порту (не INTA)
+	io_rd   = io & !RD_n;
+	sel00   = !A5 & !A1 & !A0;			-- xx00 (в CPLD проверяются только A0, A1, A5)
+	selfd   = !A15 & A5 & !A1 & A0;		-- #xxFD при A15 = 0
+	ext_on  = !blkext & !blkex2;		-- порты GMX разрешены
+	sel7efd = selfd & A14 & A10 & A9 & !A8 & ext_on;
+	sel7afd = selfd & A14 & !A10 & A9 & !A8 & ext_on;
+	sel78fd = selfd & A14 & !A10 & !A9 & !A8 & ext_on;
+	sel1ffd = selfd & !A14 & A8 & !blkex2;
+	sel7ffd = selfd & (A14 & A8 # A14 & blkext # blkex2);	-- при BLKEXT без A8, при BLKEX2 без A14 и A8 (как в FLEX)
+	wr00    = io & sel00;
+	wr7efd  = io & sel7efd;
+	wr1ffd  = io & sel1ffd;
+	wr7ffd  = io & sel7ffd & (!blkpk1 # mgen);
+	rd78fd  = io_rd & sel78fd;
+	rd7afd  = io_rd & sel7afd;
+
+	-- ===== порт xx00 =====
+	conf[].clk = WR_n;	conf[].ena = wr00;	conf[].d = D[2..0];
+	nconf_r.clk = WR_n;	nconf_r.ena = wr00;	nconf_r.d = !D3;
+	nconf_r.prn = RST_DLY;					-- RESET отпускает nCONFIG
+	reconf.clk = WR_n;	reconf.ena = wr00;	reconf.d = D3;
+	reconf.clrn = !rd7afd;
+	fixrom.clk = WR_n;	fixrom.ena = wr00;	fixrom.d = D4;
+	blkext.clk = WR_n;	blkext.ena = wr00;	blkext.d = D5;
+	blkext.clrn = RST_DLY # fixrom;
+	blkex2.clk = WR_n;	blkex2.ena = wr00;	blkex2.d = D6;
+	blkex2.clrn = RST_DLY # fixrom;
+	blkext_rb.clk = WR_n;	blkext_rb.ena = wr00;	blkext_rb.d = D5;
+	blkex2_rb.clk = WR_n;	blkex2_rb.ena = wr00;	blkex2_rb.d = D6;
+	warm.clk = GND;	warm.t = GND;	warm.prn = !rd7afd;
+
+	NCONF = nconf_r;
+
+	-- ===== порт #7EFD =====
+	ewr.clk = WR_n;	ewr.ena = wr7efd;	ewr.d = D0;	ewr.clrn = RST_DLY;
+	vpp.clk = WR_n;	vpp.ena = wr7efd;	vpp.d = D1;	vpp.clrn = RST_DLY;
+	mgen.clk = WR_n;	mgen.ena = wr7efd;	mgen.d = D2;	mgen.clrn = RST_DLY;
+	bank[].clk = WR_n;
+	bank[].ena = wr7efd & !fixrom;
+	bank[].d = D[6..4];
+	bank[].clrn = RST_DLY # fixrom;
+
+	RA[] = bank[];
+	EVPP = vpp;
+	WEFL = !(ewr & !MREQ_n & !WR_n & !A15 & !A14);	-- запись во Flash в окне 0000-3FFF
+
+	-- ===== #1FFD и #7FFD (биты ПЗУ) =====
+	blk1.clk = WR_n;	blk1.ena = wr1ffd;	blk1.d = D0;	blk1.clrn = RST_DLY;
+	rom2.clk = WR_n;	rom2.ena = wr1ffd;	rom2.d = D1;	rom2.clrn = RST_DLY;
+	trdos.clk = WR_n;	trdos.ena = wr1ffd;	trdos.d = D2;	trdos.clrn = RST_DLY;
+	rom1.clk = WR_n;	rom1.ena = wr7ffd;	rom1.d = D4;	rom1.clrn = RST_DLY;
+	blkpk1.clk = WR_n;	blkpk1.ena = wr7ffd;	blkpk1.d = D5;	blkpk1.clrn = RST_DLY;
+
+	-- ===== теневой режим: включение TR-DOS по адресу 3Dxx, кнопка Magic =====
+	rom_area  = !A15 & !A14;
+	ram_at0   = blk1 & mg_idle;		-- ОЗУ в 0000-3FFF; после Magic BLK1 не действует на чтение
+	mem_rd    = !MREQ_n & !RD_n;
+	fetch_ram = mem_rd & !M1_n & (!rom_area # ram_at0);	-- выборка команды из ОЗУ
+	rom_rd    = mem_rd & rom_area & !ram_at0;			-- чтение из ПЗУ
+	sel3d     = !A15 & !A14 & A13 & A12 & A11 & A10 & !A9 & A8;	-- 3D00-3DFF
+
+	trap_n.clk = !MREQ_n;				-- в начале цикла памяти
+	trap_n.d = !(sel3d & !M1_n & rom1 & (!blk1 # mem_rd & !mg_idle));
+
+	mg_n.clk = fetch_ram;
+	mg_n.ena = !mgen;
+	mg_n.d   = MG;
+	mg_n.prn = !rom_rd;					-- чтение из ПЗУ снимает запрос Magic
+
+	shadow.clk  = fetch_ram;
+	shadow.d    = !mg_n;					-- при выборке из ОЗУ: 1 при нажатой Magic, иначе 0
+	shadow.clrn = RST_DLY;
+	shadow.prn  = trap_n;					-- выборка из 3Dxx включает теневой режим
+
+	mg_idle.clk = !mg_n;					-- приём Magic
+	mg_idle.d   = GND;
+	mg_idle.prn = !(!RST_DLY # io & A5 & A1 & A0 & !shadow);	-- RESET или порт xxFF вне теневого режима
+
+	-- ===== страница ПЗУ / адрес блока схемы во Flash =====
+	IF trdos THEN
+		page[] = 3;						-- TR-DOS
+	ELSIF rom2 THEN
+		page[] = 2;						-- теневой монитор
+	ELSIF shadow THEN
+		page[] = (VCC, rom1);			-- 3 = TR-DOS (из ZX48), 2 = теневой монитор (Magic в ZX128)
+	ELSE
+		page[] = (GND, rom1);			-- 0 = ZX128, 1 = ZX48
+	END IF;
+
+	-- до CONF_DONE: блок 8 КБ схемы FLEX в банке 0 (адрес в образе = page*0x4000 + a13*0x2000)
+	TABLE
+		conf[]	=> cfg_page[], cfg_a13;
+		0		=> 0, 1;				-- 0x2000 Start Sch (после включения питания)
+		1		=> 0, 1;				-- 0x2000 Start Sch
+		2		=> 3, 0;				-- 0xC000 Work Sch
+		3		=> 0, 1;				-- 0x2000
+		4		=> 2, 0;				-- 0x8000 PentaGON
+		5		=> 2, 1;				-- 0xA000 Komposit
+		6		=> 1, 0;				-- 0x4000 DK_test
+		7		=> 1, 1;				-- 0x6000 Scheme 7
+	END TABLE;
+
+	IF CONFD THEN
+		fpage[] = page[];
+	ELSE
+		fpage[] = cfg_page[];
+	END IF;
+	CS27 = fpage0;
+	CS1  = fpage1 $ fpage0;
+	A13  = TRI(cfg_a13, !CONFD);
+
+	-- ===== буфер данных DD11 =====
+	DIR = CONFD & WR_n;
+	EO  = CONFD & !io # rd78fd & rb0;	-- 0 (открыт) в циклах ввода-вывода; при чтении #78FD равен rb0
+
+	-- ===== последовательное чтение xx00 через #78FD =====
+	-- При RESET (если FIXROM = 0) rb[] асинхронно загружается битами xx00:
+	-- rb0..rb2 = CONF0..2, rb3 = RECONF, rb4 = 0, rb5 = BLKEXT, rb6 = BLKEX2,
+	-- rb7 = флаг warm. Каждое чтение #78FD выдаёт rb0 (1 = буфер закрыт) и сдвигает регистр.
+	rb_ld    = !RST_DLY & !fixrom;
+	rb_src[] = (warm, blkex2_rb, blkext_rb, GND, reconf, conf[2..0]);
+	rb[].clk  = !rd78fd;					-- сдвиг в конце чтения
+	rb[].d    = (GND, rb[7..1]);
+	rb[].clrn = !(rb_ld & !rb_src[]);
+	rb[].prn  = !(rb_ld & rb_src[]);
+END;

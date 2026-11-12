@@ -1,0 +1,2 @@
+FUNCTION cpu_io (A[15..0], IORQ_n, M1, MD[7..0], RD_n, clk7, cpu_clk, turbo, sw[6..0], blkext, blkex2, st_pent, brd[2..0], dos_act, ml_sys[2..0], ml_sm[2..0], ml_blkpk1, ml_scr, ml_turbo, ml_gfx, ml_zero, h[8..0])
+	RETURNS (o_rd_ff, o_iowr_go_n, o_port_wr_clk, o_a8_buf, o_a9_buf, o_a10_buf, o_a11_buf, o_a12_buf, o_a14_buf, o_a15_buf, o_sel_78fd, o_sel_7efd, o_db_oe, o_wr7ffd_n, o_wrdffd_n, o_sel00_n, o_wr_mb_n, o_db_out[7..0]);

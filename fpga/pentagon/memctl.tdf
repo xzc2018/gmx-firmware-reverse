@@ -1,0 +1,364 @@
+-- memctl: Память: выбор ОЗУ/ПЗУ, страницы, мультиплексор MA, RAS/CAS/WE, буферы, WAIT
+-- Схема GMX "PentaGON", FPGA EPF8452ALC84.
+-- Параметр CBR = 1 (задаётся при компиляции глобально, раздел GLOBAL_PARAMETERS файла .acf):
+-- регенерация DRAM циклами CAS-before-RAS в видеослотах бордюра и гашения, в турбо - в 1 слоте из 16.
+PARAMETERS (CBR = 0);
+
+SUBDESIGN memctl
+(
+	A[15..0],
+	IORQ_n,
+	M1,
+	MREQ_n,
+	RD_n,
+	clk7,
+	ras,
+	ma_col,
+	cpu_clk,
+	turbo,
+	a8_buf,
+	a9_buf,
+	a10_buf,
+	a11_buf,
+	a12_buf,
+	a14_buf,
+	a15_buf,
+	sys[2..0],
+	scr,
+	sm[2..0],
+	graphic,
+	sw[6..0],
+	h[8..0],
+	hborder,
+	v[7..0],
+	vborder,
+	at_d[4..1]	: INPUT;
+	o_ram_sel,
+	o_ram_rd,
+	o_rom_rd_n,
+	o_m1_ram,
+	o_we,
+	o_vid_slot,
+	o_cas0_drv,
+	o_cas1_drv,
+	o_rdlatch_clk,
+	o_simm1_oe,
+	o_wait_out,
+	o_ma_out[9..0]	: OUTPUT;
+)
+VARIABLE
+	ram_sel           : LCELL;	-- обращение к ОЗУ: A15 # A14
+	ram_rd            : LCELL;	-- процессор читает ОЗУ (-> RAM/)
+	rom_rd_n          : LCELL;	-- чтение ПЗУ (RDR/), активный 0
+	m1_ram            : LCELL;	-- выборка команды (M1) из ОЗУ
+	mreq_q[2..1]      : DFF;	-- 1 после спада MREQ/ при M1/ = 1 (цикл регенерации после M1); сброс при M1/ = 0
+	mem_wr            : LCELL;	-- запись процессора в ОЗУ
+	we                : DFFE;	-- строб записи ОЗУ (-> WE/)
+	we_clr            : LCELL;	-- снятие WE
+	vid_slot          : LCELL;	-- слот видео на шине памяти (иначе процессор)
+	IF CBR GENERATE
+	bord              : LCELL;	-- бордюр или гашение: данные видеочтения не используются
+	steal_n           : LCELL;	-- 0 = слот, отдаваемый в турбо под регенерацию (h4..h2 = 111)
+	refr              : LCELL;	-- слот регенерации CAS-before-RAS
+	cas1_c            : LCELL;	-- условие CAS1 в обычном цикле
+	END GENERATE;
+	simm0_sel         : LCELL;	-- выбрана SIMM 0
+	cas0_drv          : LCELL;	-- CAS0/ - SIMM 0 (активный 0)
+	cas1_drv          : LCELL;	-- CAS1 - SIMM 1 (и такт защёлки DD5)
+	rdlatch_clk       : LCELL;	-- WRBUF: такт защёлки DD9 (ОЗУ -> Z80)
+	ebuf_ff           : DFF;	-- фаза выдачи данных SIMM 1
+	ebuf_cond         : LCELL;	-- условие выдачи защёлки DD5
+	simm1_oe          : LCELL;	-- EBUF: выход защёлки DD5 (SIMM 1 -> MD)
+	wait_ff           : DFF;	-- счётчик такта ожидания
+	wait_cond         : LCELL;	-- условие ожидания (активная область, турбо)
+	wait_req          : LCELL;	-- запрос ожидания
+	wait_out          : LCELL;	-- WAIT/ для Z80 (только в турбо)
+	pg[2..0]          : LCELL;	-- номер страницы ОЗУ, биты 2..0
+	win8000           : LCELL;	-- окно #8000-#BFFF (A15=1, A14=0)
+	pg_hi_c000        : LCELL;	-- биты 4/5 окна #C000 (SM0/SM1) по фазе
+	pg_hi_8000        : LCELL;	-- биты 4/5 окна #8000 (SW4/SW5) по фазе
+	pg_hi             : LCELL;	-- биты 4/5 страницы для MA9
+	ma0_cpu           : LCELL;	-- MA0 от процессора: A0 (строка) / pg2 (столбец)
+	ma0_v             : LCELL;	-- MA0 видео (ZX, без Graphic)
+	ma1_cpu           : LCELL;	-- MA1 процессор: A1 / A9
+	ma1_v             : LCELL;	-- MA1 видео
+	ma1_vz            : LCELL;	-- видео ZX для MA1: v1 при h2 = 0, v7 при h2 = 1
+	ma2_cpu           : LCELL;	-- MA2 процессор: A2 / A10
+	ma2_v             : LCELL;	-- MA2 видео
+	ma3_cpu           : LCELL;	-- MA3 процессор: A3 / A11
+	ma3_v             : LCELL;	-- MA3 видео
+	ma4_cpu           : LCELL;	-- MA4 процессор: A4 / A12
+	ma4_v             : LCELL;	-- MA4 видео
+	ma5_row           : LCELL;	-- MA5 строка: A5 / видео
+	ma6_cpu           : LCELL;	-- MA6 процессор: A6 / pg0
+	ma7_row           : LCELL;	-- MA7 строка: A7 / видео v5
+	ma7_col           : LCELL;	-- MA7 столбец: pg1 / SCR
+	ma8_row           : LCELL;	-- MA8 строка: A8 / видео
+	ma8_row_v         : LCELL;	-- видео ZX для MA8: v0 при h2 = 0, v6 при h2 = 1
+	ma8_col           : LCELL;	-- MA8 столбец: SW3 в окне #8000 / Graphic
+	ma_out[9..0]      : LCELL;	-- адрес DRAM на выводы MA9..MA0
+BEGIN
+
+	-- ram_sel: обращение к ОЗУ: A15 # A14
+	ram_sel = a15_buf
+		# a14_buf;
+
+	-- ram_rd: процессор читает ОЗУ (-> RAM/)
+	ram_rd = !MREQ_n & !RD_n & ram_sel;
+
+	-- rom_rd_n: чтение ПЗУ (RDR/), активный 0
+	rom_rd_n = MREQ_n
+		# RD_n
+		# ram_sel;
+
+	-- m1_ram: выборка команды (M1) из ОЗУ
+	m1_ram = ram_rd & !M1;
+
+	-- mreq_q[2..1]: 1 после спада MREQ/ при M1/ = 1 (цикл регенерации после M1); сброс при M1/ = 0
+	--   mreq_q2: 1 после следующего спада MREQ/ (вторая ступень mreq_q1)
+	--   mreq_q1: 1 после спада MREQ/ при M1/ = 1 (цикл регенерации после M1); сброс при M1/ = 0
+	mreq_q[].clk = !MREQ_n;
+	mreq_q[].clrn = M1;
+	mreq_q[].d = (mreq_q1, VCC);
+
+	-- mem_wr: запись процессора в ОЗУ
+	mem_wr = mreq_q2 & !MREQ_n & RD_n & ram_sel;
+
+	-- we: строб записи ОЗУ (-> WE/)
+	we.clk = ma_col;
+	we.clrn = we_clr;
+	we.ena = !vid_slot;
+	we.d = mem_wr;
+
+	-- we_clr: снятие WE
+	we_clr = !clk7
+		# !ras
+		# h0;
+
+	-- vid_slot: слот видео на шине памяти (иначе процессор)
+	IF CBR GENERATE
+	vid_slot = (h1 & !bord)
+		# (h1 & !turbo)
+		# (h1 & !steal_n);
+
+	-- bord: бордюр или гашение: данные видеочтения не используются
+	bord = hborder # vborder;
+
+	-- steal_n: 0 = слот, отдаваемый в турбо под регенерацию (вместе с h1 = 1: 1 слот из 16)
+	steal_n = !(h2 & h3 & h4);
+
+	-- refr: слот регенерации CAS-before-RAS: видеослот на бордюре или в гашении.
+	--   CAS0/ и CAS1 активны весь слот, RAS/ опускается при опущенном CAS; WE/ = 1 (we сброшен в начале слота).
+	--   Строку выбирает внутренний счётчик микросхемы.
+	refr = vid_slot & bord;
+	ELSE GENERATE
+	vid_slot = (h1 & !hborder & !vborder)
+		# (h1 & !turbo);
+	END GENERATE;
+
+	-- simm0_sel: выбрана SIMM 0
+	simm0_sel = (!a14_buf & !sw6)
+		# !a15_buf
+		# (a14_buf & !sm2);
+
+	-- cas0_drv: CAS0/ - SIMM 0 (активный 0)
+	IF CBR GENERATE
+	cas0_drv = (!simm0_sel & !vid_slot)
+		# (!h0 & !refr);
+	ELSE GENERATE
+	cas0_drv = (!simm0_sel & !vid_slot)
+		# !h0;
+	END GENERATE;
+
+	-- cas1_drv: CAS1 - SIMM 1 (и такт защёлки DD5)
+	IF CBR GENERATE
+	cas1_drv = (h0 & cas1_c)
+		# refr;
+
+	-- cas1_c: условие CAS1 в обычном цикле: процессор и SIMM 1, или видео в режиме Graphic
+	cas1_c = (!simm0_sel & !vid_slot)
+		# (vid_slot & graphic);
+	ELSE GENERATE
+	cas1_drv = (!simm0_sel & h0 & !vid_slot)
+		# (h0 & vid_slot & graphic);
+	END GENERATE;
+
+	-- rdlatch_clk: WRBUF: такт защёлки DD9 (ОЗУ -> Z80)
+	rdlatch_clk = h0 & !vid_slot;
+
+	-- ebuf_ff: фаза выдачи данных SIMM 1
+	ebuf_ff.clk = h0;
+	ebuf_ff.clrn = graphic;
+	ebuf_ff.d = vid_slot;
+
+	-- ebuf_cond: условие выдачи защёлки DD5
+	ebuf_cond = !ebuf_ff
+		# at_d4
+		# vid_slot;
+
+	-- simm1_oe: EBUF: выход защёлки DD5 (SIMM 1 -> MD)
+	simm1_oe = (ebuf_cond & !rdlatch_clk)
+		# (!ram_rd & ebuf_cond)
+		# (simm0_sel & ebuf_cond);
+
+	-- wait_ff: счётчик такта ожидания
+	wait_ff.clk = !cpu_clk;
+	wait_ff.clrn = !IORQ_n;
+	wait_ff.d = !wait_ff;
+
+	-- wait_cond: условие ожидания (активная область, турбо)
+	IF CBR GENERATE
+	wait_cond = !turbo
+		# !h1
+		# (bord & steal_n);
+	ELSE GENERATE
+	wait_cond = !turbo
+		# !h1
+		# hborder
+		# vborder;
+	END GENERATE;
+
+	-- wait_req: запрос ожидания
+	wait_req = (!mem_wr & !ram_rd)
+		# (!ras & wait_cond);
+
+	-- wait_out: WAIT/ для Z80 (только в турбо)
+	wait_out = !turbo
+		# (!wait_ff & wait_req);
+
+	-- pg[2..0]: номер страницы ОЗУ, биты 2..0
+	--   pg2: бит 2: 01->1, 10->SW2, 11->SYS2
+	--   pg1: бит 1: 10->!SW1, 11->SYS1
+	--   pg0: бит страницы 0: 01->1(банк5), 10->SW0, 11->SYS0
+	pg2 = (!a15_buf & a14_buf)
+		# (a14_buf & sys2)
+		# (a15_buf & !a14_buf & sw2);
+	pg1 = (a15_buf & !a14_buf & !sw1)
+		# (a15_buf & a14_buf & sys1);
+	pg0 = (!a15_buf & a14_buf)
+		# (a14_buf & sys0)
+		# (a15_buf & !a14_buf & sw0);
+
+	-- win8000: окно #8000-#BFFF (A15=1, A14=0)
+	win8000 = a15_buf & !a14_buf;
+
+	-- pg_hi_c000: биты 4/5 окна #C000 (SM0/SM1) по фазе
+	IF !ma_col THEN pg_hi_c000 = sm0; ELSE pg_hi_c000 = sm1; END IF;
+
+	-- pg_hi_8000: биты 4/5 окна #8000 (SW4/SW5) по фазе
+	IF ma_col THEN pg_hi_8000 = sw4; ELSE pg_hi_8000 = sw5; END IF;
+
+	-- pg_hi: биты 4/5 страницы для MA9
+	IF !a14_buf THEN pg_hi = pg_hi_8000; ELSE pg_hi = pg_hi_c000; END IF;
+
+	-- ma0_cpu: MA0 от процессора: A0 (строка) / pg2 (столбец)
+	ma0_cpu = (A0 & !ma_col & !vid_slot)
+		# (ma_col & pg2 & !vid_slot);
+
+	-- ma0_v: MA0 видео (ZX, без Graphic)
+	ma0_v = vid_slot & !graphic;
+
+	-- ma1_cpu: MA1 процессор: A1 / A9
+	IF !ma_col THEN ma1_cpu = A1; ELSE ma1_cpu = a9_buf; END IF;
+
+	-- ma1_v: MA1 видео
+	IF !ma_col THEN ma1_v = h4; ELSE ma1_v = ma1_vz; END IF;
+
+	-- ma1_vz: видео ZX для MA1: v1 при h2 = 0, v7 при h2 = 1
+	IF !h2 THEN ma1_vz = v1; ELSE ma1_vz = v7; END IF;
+
+	-- ma2_cpu: MA2 процессор: A2 / A10
+	IF !ma_col THEN ma2_cpu = A2; ELSE ma2_cpu = a10_buf; END IF;
+
+	-- ma2_v: MA2 видео
+	ma2_v = (h5 & !ma_col)
+		# (!h2 & ma_col & v2);
+
+	-- ma3_cpu: MA3 процессор: A3 / A11
+	IF !ma_col THEN ma3_cpu = A3; ELSE ma3_cpu = a11_buf; END IF;
+
+	-- ma3_v: MA3 видео
+	ma3_v = (h2 & ma_col)
+		# (!ma_col & h6)
+		# (ma_col & v6);
+
+	-- ma4_cpu: MA4 процессор: A4 / A12
+	IF !ma_col THEN ma4_cpu = A4; ELSE ma4_cpu = a12_buf; END IF;
+
+	-- ma4_v: MA4 видео
+	ma4_v = (h2 & ma_col)
+		# (!ma_col & h7)
+		# (ma_col & v7);
+
+	-- ma5_row: MA5 строка: A5 / видео
+	ma5_row = (A5 & !vid_slot)
+		# (vid_slot & v3 & !graphic);
+
+	-- ma6_cpu: MA6 процессор: A6 / pg0
+	ma6_cpu = (A6 & !ma_col & !vid_slot)
+		# (ma_col & pg0)
+		# (ma_col & vid_slot);
+
+	-- ma7_row: MA7 строка: A7 / видео v5
+	ma7_row = (A7 & !vid_slot)
+		# (vid_slot & v5 & !graphic);
+
+	-- ma7_col: MA7 столбец: pg1 / SCR
+	IF !vid_slot THEN ma7_col = pg1; ELSE ma7_col = scr; END IF;
+
+	-- ma8_row: MA8 строка: A8 / видео
+	ma8_row = (a8_buf & !vid_slot)
+		# (vid_slot & ma8_row_v & !graphic);
+
+	-- ma8_row_v: видео ZX для MA8: v0 при h2 = 0, v6 при h2 = 1
+	IF !h2 THEN ma8_row_v = v0; ELSE ma8_row_v = v6; END IF;
+
+	-- ma8_col: MA8 столбец: SW3 в окне #8000 / Graphic
+	ma8_col = (win8000 & sw3 & !vid_slot)
+		# (vid_slot & graphic);
+
+	-- ma_out[9..0]: адрес DRAM на выводы MA9..MA0
+	--   ma_out9: -> MA9
+	--   ma_out8: -> MA8
+	--   ma_out7: -> MA7
+	--   ma_out6: -> MA6
+	--   ma_out5: -> MA5
+	--   ma_out4: -> MA4
+	--   ma_out3: -> MA3
+	--   ma_out2: -> MA2
+	--   ma_out1: -> MA1
+	--   ma_out0: -> MA0
+	ma_out9 = (a15_buf & pg_hi & !vid_slot)
+		# (vid_slot & graphic);
+	IF ma_col THEN ma_out8 = ma8_col; ELSE ma_out8 = ma8_row; END IF;
+	IF ma_col THEN ma_out7 = ma7_col; ELSE ma_out7 = ma7_row; END IF;
+	ma_out6 = ma6_cpu
+		# (vid_slot & v4 & !graphic);
+	ma_out5 = (A13 & ma_col & !vid_slot)
+		# (!ma_col & ma5_row);
+	ma_out4 = (ma4_cpu & !vid_slot)
+		# (vid_slot & ma4_v & !graphic);
+	ma_out3 = (ma3_cpu & !vid_slot)
+		# (vid_slot & ma3_v & !graphic);
+	ma_out2 = (ma2_cpu & !vid_slot)
+		# (ma2_v & vid_slot & !graphic);
+	ma_out1 = (ma1_cpu & !vid_slot)
+		# (vid_slot & ma1_v & !graphic);
+	ma_out0 = ma0_cpu
+		# (h3 & ma0_v)
+		# (ma_col & ma0_v);
+
+	-- выходы модуля
+	o_ram_sel = ram_sel;
+	o_ram_rd = ram_rd;
+	o_rom_rd_n = rom_rd_n;
+	o_m1_ram = m1_ram;
+	o_we = we;
+	o_vid_slot = vid_slot;
+	o_cas0_drv = cas0_drv;
+	o_cas1_drv = cas1_drv;
+	o_rdlatch_clk = rdlatch_clk;
+	o_simm1_oe = simm1_oe;
+	o_wait_out = wait_out;
+	o_ma_out[] = ma_out[];
+END;

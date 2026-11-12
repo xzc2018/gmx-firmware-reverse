@@ -1,0 +1,2 @@
+3800 key 6 150
+8000 shot board_test.png

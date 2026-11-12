@@ -1,0 +1,153 @@
+-- ports: Регистры портов #7FFD (Pentagon), #FE, #DFFD, #7EFD, #78FD, xx00
+-- Схема GMX "PentaGON", FPGA EPF8452ALC84.
+SUBDESIGN ports
+(
+	A[15..0],
+	DB[7..0],
+	RESET,
+	iowr_go_n,
+	port_wr_clk,
+	sel_78fd,
+	sel_7efd,
+	wr7ffd_n,
+	wrdffd_n,
+	sel00_n,
+	dos_act	: INPUT;
+	o_sys[2..0],
+	o_scr,
+	o_rom1,
+	o_blkpk1,
+	o_sm[2..0],
+	o_mag_dis,
+	o_graphic,
+	o_sw[6..0],
+	o_blkext,
+	o_blkex2,
+	o_st_pent,
+	o_brd[2..0]	: OUTPUT;
+)
+VARIABLE
+	sys[2..0]         : DFFE;	-- #7FFD.D2..0 SYS0..2 - страница окна #C000
+	scr               : DFFE;	-- #7FFD.D3 SCR (пишется по началу цикла записи)
+	rom1              : DFFE;	-- #7FFD.D4 ROM1
+	blkpk1            : DFFE;	-- #7FFD.D5 - запирает #7FFD до RESET (Pentagon)
+	sm[2..0]          : DFFE;	-- #DFFD.D2..0 SM0..2 - расширенная память, SM2 выбирает SIMM
+	mag_dis           : DFFE;	-- #7EFD.D2 MagEnable: 1 = Magic заблокирована
+	graphic           : DFFE;	-- #7EFD.D3 Graphic (при BLKEXT недоступен)
+	sw[6..0]          : DFFE;	-- #78FD.D6..0 SW0..6 - страница окна #8000
+	fixrom            : DFFE;	-- xx00.D4 FIXROM
+	blkext            : DFFE;	-- xx00.D5 BLKEXT - отключает порты GMX
+	blkex2            : DFFE;	-- xx00.D6 BLKEX2 - #7FFD по A1, A15
+	st_pent           : DFFE;	-- xx00.D7 ST/PENT
+	ext_rst           : LCELL;	-- сброс BLKEXT/BLKEX2 по RESET только при FIXROM = 0 (так же в CPLD)
+	brd[2..0]         : DFFE;	-- #FE.D2..0 - цвет бордюра (B, R, G), пишется по началу цикла записи
+BEGIN
+
+	-- sys[2..0]: #7FFD.D2..0 SYS0..2 - страница окна #C000
+	--   sys2: #7FFD.D2 SYS2
+	--   sys1: #7FFD.D1 SYS1
+	--   sys0: #7FFD.D0 SYS0 - страница ОЗУ
+	sys[].clk = port_wr_clk;
+	sys[].clrn = RESET;
+	sys[].ena = !blkpk1 & !wr7ffd_n;
+	sys[].d = DB[2..0];
+
+	-- scr: #7FFD.D3 SCR (пишется по началу цикла записи)
+	scr.clk = !iowr_go_n;
+	scr.ena = !wr7ffd_n;
+	scr.d = DB3;
+
+	-- rom1: #7FFD.D4 ROM1
+	rom1.clk = port_wr_clk;
+	rom1.clrn = RESET;
+	rom1.ena = !blkpk1 & !wr7ffd_n;
+	rom1.d = DB4;
+
+	-- blkpk1: #7FFD.D5 - запирает #7FFD до RESET (Pentagon)
+	blkpk1.clk = port_wr_clk;
+	blkpk1.clrn = RESET;
+	blkpk1.ena = DB5 & !wr7ffd_n;
+	blkpk1.d = VCC;
+
+	-- sm[2..0]: #DFFD.D2..0 SM0..2 - расширенная память, SM2 выбирает SIMM
+	--   sm2: #DFFD.D2 SM2 - выбор SIMM
+	--   sm1: #DFFD.D1 SM1
+	--   sm0: #DFFD.D0 SM0
+	sm[].clk = port_wr_clk;
+	sm[].clrn = RESET;
+	sm[].ena = !wrdffd_n;
+	sm[].d = DB[2..0];
+
+	-- mag_dis: #7EFD.D2 MagEnable: 1 = Magic заблокирована
+	mag_dis.clk = port_wr_clk;
+	mag_dis.clrn = RESET;
+	mag_dis.ena = sel_7efd;
+	mag_dis.d = DB2;
+
+	-- graphic: #7EFD.D3 Graphic (при BLKEXT недоступен)
+	graphic.clk = port_wr_clk;
+	graphic.clrn = RESET;
+	graphic.ena = sel_7efd;
+	graphic.d = DB3;
+
+	-- sw[6..0]: #78FD.D6..0 SW0..6 - страница окна #8000
+	--   sw6: #78FD.D6 SW6
+	--   sw5: #78FD.D5 SW5
+	--   sw4: #78FD.D4 SW4
+	--   sw3: #78FD.D3 SW3
+	--   sw2: #78FD.D2 SW2
+	--   sw1: #78FD.D1 SW1 (в номер страницы идёт инверсным)
+	--   sw0: #78FD.D0 SW0 - страница окна #8000
+	sw[].clk = port_wr_clk;
+	sw[].clrn = RESET;
+	sw[].ena = sel_78fd;
+	sw[].d = DB[6..0];
+
+	-- fixrom: xx00.D4 FIXROM
+	fixrom.clk = port_wr_clk;
+	fixrom.ena = !sel00_n;
+	fixrom.d = DB4;
+
+	-- blkext: xx00.D5 BLKEXT - отключает порты GMX
+	blkext.clk = port_wr_clk;
+	blkext.clrn = ext_rst;
+	blkext.ena = !sel00_n;
+	blkext.d = DB5;
+
+	-- blkex2: xx00.D6 BLKEX2 - #7FFD по A1, A15
+	blkex2.clk = port_wr_clk;
+	blkex2.clrn = ext_rst;
+	blkex2.ena = !sel00_n;
+	blkex2.d = DB6;
+
+	-- st_pent: xx00.D7 ST/PENT
+	st_pent.clk = port_wr_clk;
+	st_pent.ena = !sel00_n;
+	st_pent.d = DB7;
+
+	-- ext_rst: сброс BLKEXT/BLKEX2 по RESET только при FIXROM = 0 (так же в CPLD)
+	ext_rst = RESET
+		# fixrom;
+
+	-- brd[2..0]: #FE.D2..0 - цвет бордюра (B, R, G), пишется по началу цикла записи
+	--   brd2: #FE.D2 бордюр B
+	--   brd1: #FE.D1 бордюр R
+	--   brd0: #FE.D0 бордюр G (по A0=0, по началу записи)
+	brd[].clk = !iowr_go_n;
+	brd[].ena = !A0 & !dos_act;
+	brd[].d = DB[2..0];
+
+	-- выходы модуля
+	o_sys[] = sys[];
+	o_scr = scr;
+	o_rom1 = rom1;
+	o_blkpk1 = blkpk1;
+	o_sm[] = sm[];
+	o_mag_dis = mag_dis;
+	o_graphic = graphic;
+	o_sw[] = sw[];
+	o_blkext = blkext;
+	o_blkex2 = blkex2;
+	o_st_pent = st_pent;
+	o_brd[] = brd[];
+END;

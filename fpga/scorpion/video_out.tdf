@@ -1,0 +1,159 @@
+-- video_out: Видеовыход: сдвиговый регистр пикселей, атрибуты, бордюр, RGBI
+-- Схема GMX "Scorpion", FPGA EPF8452ALC84.
+SUBDESIGN video_out
+(
+	MD[7..0],
+	p14M,
+	clk7,
+	ras,
+	pix_clk,
+	graphic,
+	brd[2..0],
+	we,
+	cpu_slot,
+	h[8..0],
+	hborder,
+	hs_pulse,
+	vborder,
+	flash	: INPUT;
+	o_at_d[4..1],
+	o_out_g,
+	o_out_r,
+	o_out_b,
+	o_out_i	: OUTPUT;
+)
+VARIABLE
+	px[7..0]          : DFF;	-- сдвиговый регистр пикселей, загружается из MD7..MD0
+	pxd[3..1]         : DFF;	-- задержка пикселя до совмещения с атрибутом
+	pixel             : DFF;	-- текущая точка (задержана под атрибут)
+	px_sh_gfx         : LCELL;	-- сдвиг регистра пикселей (режим 640); при 0 обоих сдвигов - загрузка из MD
+	px_sh_zx          : LCELL;	-- сдвиг регистра пикселей (режим ZX)
+	at_d[4..1]        : DFF;	-- задержка такта загрузки атрибута (по 14M)
+	attr_clk          : LCELL;	-- такт регистра атрибутов
+	at_flash          : DFF;	-- атрибут FLASH (MD7), 0 в бордюре
+	at_bright         : DFF;	-- атрибут BRIGHT (MD6), 0 в бордюре
+	at_ink[2..0]      : DFF;	-- цвет INK (бит 2..0 = B, R, G) или цвет бордюра
+	at_pap[2..0]      : DFF;	-- цвет PAPER (бит 2..0 = B, R, G) или цвет бордюра
+	ink_en            : LCELL;	-- точка рисуется цветом INK (с учётом FLASH)
+	paper_en          : LCELL;	-- точка рисуется цветом PAPER
+	out_g             : LCELL;	-- -> G
+	out_r             : LCELL;	-- -> R
+	out_b             : LCELL;	-- -> B
+	out_i             : LCELL;	-- -> I (яркость)
+BEGIN
+
+	-- px[7..0]: сдвиговый регистр пикселей, загружается из MD7..MD0
+	--   px7: бит 7 (MD7) - выход регистра
+	--   px6: бит 6 (MD6)
+	--   px5: бит 5 (MD5)
+	--   px4: бит 4 (MD4)
+	--   px3: бит 3 (MD3)
+	--   px2: бит 2 (MD2)
+	--   px1: бит 1 (MD1)
+	--   px0: сдвиговый регистр пикселей, бит 0 (MD0)
+	px[].clk = pix_clk;
+	IF !px_sh_gfx & !px_sh_zx THEN
+		px[].d = MD[];
+	ELSE
+		px[].d = (px[6..0], GND);
+	END IF;
+
+	-- pxd[3..1]: задержка пикселя до совмещения с атрибутом
+	--   pxd3: задержка 3
+	--   pxd2: задержка 2
+	--   pxd1: задержка пикселя 1
+	pxd[].clk = pix_clk;
+	pxd[].d = (pxd[2..1], px7);
+
+	-- pixel: текущая точка (задержана под атрибут)
+	pixel.clk = pix_clk;
+	pixel.d = pxd3;
+
+	-- px_sh_gfx: сдвиг регистра пикселей (режим 640); при 0 обоих сдвигов - загрузка из MD
+	px_sh_gfx = (!h1 & graphic)
+		# (!clk7 & graphic)
+		# (ras & graphic);
+
+	-- px_sh_zx: сдвиг регистра пикселей (режим ZX)
+	px_sh_zx = (!h0 & !graphic)
+		# (h2 & !graphic)
+		# (cpu_slot & !graphic);
+
+	-- at_d[4..1]: задержка такта загрузки атрибута (по 14M)
+	--   at_d4: ступень 4
+	--   at_d3: ступень 3
+	--   at_d2: ступень 2
+	--   at_d1: задержка загрузки атрибута, ступень 1 (14M)
+	at_d[].clk = p14M;
+	at_d4.clrn = !we;
+	at_d4.d = !at_d3;
+	at_d3.d = at_d2;
+	at_d2.d = at_d1;
+	IF !px_sh_zx THEN at_d1.d = px_sh_gfx; ELSE at_d1.d = VCC; END IF;
+
+	-- attr_clk: такт регистра атрибутов
+	IF graphic THEN attr_clk = at_d4; ELSE attr_clk = !h2; END IF;
+
+	-- at_flash: атрибут FLASH (MD7), 0 в бордюре
+	at_flash.clk = attr_clk;
+	at_flash.d = MD7 & !hborder & !vborder;
+
+	-- at_bright: атрибут BRIGHT (MD6), 0 в бордюре
+	at_bright.clk = attr_clk;
+	at_bright.d = MD6 & !hborder & !vborder;
+
+	-- at_ink[2..0]: цвет INK (бит 2..0 = B, R, G) или цвет бордюра
+	--   at_ink2: INK бит 2 (MD2) / бордюр B
+	--   at_ink1: INK бит 1 (MD1) / бордюр R
+	--   at_ink0: INK бит 0 (MD0) / бордюр G
+	at_ink[].clk = attr_clk;
+	IF !hborder & !vborder THEN
+		at_ink[].d = MD[2..0];
+	ELSE
+		at_ink[].d = brd[];
+	END IF;
+
+	-- at_pap[2..0]: цвет PAPER (бит 2..0 = B, R, G) или цвет бордюра
+	--   at_pap2: PAPER бит 2 (MD5) / бордюр B
+	--   at_pap1: PAPER бит 1 (MD4) / бордюр R
+	--   at_pap0: PAPER бит 0 (MD3) / бордюр G
+	at_pap[].clk = attr_clk;
+	IF !hborder & !vborder THEN
+		at_pap[].d = MD[5..3];
+	ELSE
+		at_pap[].d = brd[];
+	END IF;
+
+	-- ink_en: точка рисуется цветом INK (с учётом FLASH)
+	ink_en = (hs_pulse & pixel & !flash)
+		# (hs_pulse & !at_flash & pixel)
+		# (hs_pulse & at_flash & !pixel & flash);
+
+	-- paper_en: точка рисуется цветом PAPER
+	paper_en = (hs_pulse & !pixel & !flash)
+		# (hs_pulse & !at_flash & !pixel)
+		# (hs_pulse & at_flash & pixel & flash);
+
+	-- out_g: -> G
+	out_g = (at_pap0 & paper_en)
+		# (at_ink0 & ink_en);
+
+	-- out_r: -> R
+	out_r = (at_pap1 & paper_en)
+		# (at_ink1 & ink_en);
+
+	-- out_b: -> B
+	out_b = (at_pap2 & paper_en)
+		# (at_ink2 & ink_en);
+
+	-- out_i: -> I (яркость)
+	out_i = (at_bright & paper_en)
+		# (at_bright & ink_en);
+
+	-- выходы модуля
+	o_at_d[] = at_d[];
+	o_out_g = out_g;
+	o_out_r = out_r;
+	o_out_b = out_b;
+	o_out_i = out_i;
+END;

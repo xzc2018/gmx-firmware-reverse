@@ -1,0 +1,133 @@
+-- magic: Кнопка Magic, флаг теневого ПЗУ / TR-DOS, защёлки конфигурации для чтения
+-- Схема GMX "PentaGON", FPGA EPF8452ALC84.
+SUBDESIGN magic
+(
+	A[15..0],
+	M1,
+	MG,
+	MREQ_n,
+	RESET,
+	turbo,
+	rd_ff,
+	a8_buf,
+	a9_buf,
+	a10_buf,
+	a11_buf,
+	a12_buf,
+	sys[2..0],
+	scr,
+	rom1,
+	blkpk1,
+	sm[2..0],
+	mag_dis,
+	graphic,
+	ram_sel,
+	rom_rd_n,
+	m1_ram	: INPUT;
+	o_dos_act,
+	o_ml_sys[2..0],
+	o_ml_sm[2..0],
+	o_ml_blkpk1,
+	o_ml_scr,
+	o_ml_turbo,
+	o_ml_gfx,
+	o_ml_zero	: OUTPUT;
+)
+VARIABLE
+	magic_act         : DFFE;	-- Magic принята, фиксируется по M1 из ОЗУ
+	dos_act           : DFF;	-- теневое ПЗУ: включение при выборке из 3Dxx, выход по M1 из ОЗУ
+	magic_hold        : DFF;	-- защёлки конфигурации заморожены (после Magic до чтения #FF)
+	magic_rel         : LCELL;	-- снятие magic_hold
+	dos_trap_n        : DFF;	-- 0 = выборка команды из 3D00-3DFF при ПЗУ-48
+	a3dxx_lo_n        : LCELL;	-- 0 = M1, A10=1, A9=0
+	a3dxx_hi_n        : LCELL;	-- 0 = A13=A12=A11=A8=1
+	ml_sys[2..0]      : LCELL;	-- защёлки SYS0..2 для чтения #7AFD
+	ml_sm[2..0]       : LCELL;	-- защёлки SM0..2 для чтения #7AFD
+	ml_blkpk1         : LCELL;	-- защёлка BLKPK1 для чтения #7EFD
+	ml_scr            : LCELL;	-- защёлка SCR
+	ml_turbo          : LCELL;	-- защёлка Турбо
+	ml_gfx            : LCELL;	-- защёлка Graphic
+	ml_zero           : LCELL;	-- защёлка константы 0 (на месте SYS3 и BLK1, которых здесь нет)
+BEGIN
+
+	-- magic_act: Magic принята, фиксируется по M1 из ОЗУ
+	magic_act.clk = m1_ram;
+	magic_act.clrn = rom_rd_n;
+	magic_act.ena = !mag_dis;
+	magic_act.d = !MG;
+
+	-- dos_act: теневое ПЗУ: включение при выборке из 3Dxx, выход по M1 из ОЗУ
+	dos_act.clk = m1_ram;
+	dos_act.clrn = RESET;
+	dos_act.prn = dos_trap_n;
+	dos_act.d = magic_act;
+
+	-- magic_hold: защёлки конфигурации заморожены (после Magic до чтения #FF)
+	magic_hold.clk = magic_act;
+	magic_hold.clrn = magic_rel;
+	magic_hold.d = VCC;
+
+	-- magic_rel: снятие magic_hold
+	magic_rel = (RESET & !rd_ff)
+		# (RESET & dos_act);
+
+	-- dos_trap_n: 0 = выборка команды из 3D00-3DFF при ПЗУ-48
+	dos_trap_n.clk = !MREQ_n;
+	IF !a3dxx_lo_n & !ram_sel & rom1 THEN dos_trap_n.d = a3dxx_hi_n; ELSE dos_trap_n.d = VCC; END IF;
+
+	-- a3dxx_lo_n: 0 = M1, A10=1, A9=0
+	a3dxx_lo_n = !a10_buf
+		# a9_buf
+		# M1;
+
+	-- a3dxx_hi_n: 0 = A13=A12=A11=A8=1
+	a3dxx_hi_n = !a8_buf
+		# !A13
+		# !a12_buf
+		# !a11_buf;
+
+	-- ml_sys[2..0]: защёлки SYS0..2 для чтения #7AFD
+	--   ml_sys2: защёлка SYS2
+	--   ml_sys1: защёлка SYS1
+	--   ml_sys0: защёлка SYS0 для чтения #7AFD
+	IF magic_hold THEN
+		ml_sys[] = ml_sys[];
+	ELSE
+		ml_sys[] = sys[];
+	END IF;
+
+	-- ml_sm[2..0]: защёлки SM0..2 для чтения #7AFD
+	--   ml_sm2: защёлка SM2
+	--   ml_sm1: защёлка SM1
+	--   ml_sm0: защёлка SM0
+	IF magic_hold THEN
+		ml_sm[] = ml_sm[];
+	ELSE
+		ml_sm[] = sm[];
+	END IF;
+
+	-- ml_blkpk1: защёлка BLKPK1 для чтения #7EFD
+	IF !magic_hold THEN ml_blkpk1 = blkpk1; ELSE ml_blkpk1 = ml_blkpk1; END IF;
+
+	-- ml_scr: защёлка SCR
+	IF magic_hold THEN ml_scr = ml_scr; ELSE ml_scr = scr; END IF;
+
+	-- ml_turbo: защёлка Турбо
+	IF magic_hold THEN ml_turbo = ml_turbo; ELSE ml_turbo = turbo; END IF;
+
+	-- ml_gfx: защёлка Graphic
+	IF !magic_hold THEN ml_gfx = graphic; ELSE ml_gfx = ml_gfx; END IF;
+
+	-- ml_zero: защёлка константы 0 (на месте SYS3 и BLK1, которых здесь нет)
+	ml_zero = magic_hold & ml_zero;
+
+	-- выходы модуля
+	o_dos_act = dos_act;
+	o_ml_sys[] = ml_sys[];
+	o_ml_sm[] = ml_sm[];
+	o_ml_blkpk1 = ml_blkpk1;
+	o_ml_scr = ml_scr;
+	o_ml_turbo = ml_turbo;
+	o_ml_gfx = ml_gfx;
+	o_ml_zero = ml_zero;
+END;

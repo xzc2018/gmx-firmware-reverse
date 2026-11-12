@@ -1,0 +1,45 @@
+pin;cpld_function;net;note
+1;I/CLR (global clear input);RST_DLY;RESET via DD10.3 -> RC (C1) -> DD10.6 (delayed reset)
+2;I/OE2/CLK2;MG;Magic button
+3;VCC;;
+4;I/O0 (LAB A);NCONF;FLEX nCONFIG = !xx00.D3 (RECONF), set to 1 by RESET
+5;I/O1;EO;/OE of data buffer DD11 (DB <-> Z80 D), 0 = open (I/O cycles)
+6;I/O2;DIR;direction of DD11 = CONFD & WR/
+7;I/O3/TDI;A0;Z80 address (JTAG is off in the GMX POF, so TDI/TMS/TCK/TDO are I/O)
+8;I/O4;A1;
+9;I/O5;A5;
+10;GND;;
+11;I/O6;A8;
+12;I/O7;A9;
+13;I/O8/TMS;A10;
+14;I/O9;A11;
+15;VCC;;
+16;I/O10;A12;
+17;I/O11;A13;input, output (Flash A13 for FLEX self-load) while CONF_DONE = 0
+18;I/O12;A14;
+19;I/O13;A15;
+20;I/O14;CS27;Flash address bit 14 (28F400 A13 in byte mode), not a chip select
+21;I/O15;CS1;Flash address bit 15 (28F400 A14), = page1 xor page0
+22;GND;;
+23;VCC;;
+24;I/O15 (LAB B);RA16;Flash address A16 (bank)
+25;I/O14;RA17;Flash address A17
+26;I/O13;RA18;Flash address A18
+27;I/O12;WEFL;Flash WE# = !(EWR & MREQ & WR & A15..A14=00)
+28;I/O11;EVPP;Flash Vpp (+12V) switch (via VT2/VT1)
+29;I/O10;MREQ/;Z80
+30;GND;;
+31;I/O9;RD/;Z80
+32;I/O8/TCK;D6;Z80 data (D7 is NOT connected to the CPLD)
+33;I/O7;D5;
+34;I/O6;D4;
+35;VCC;;
+36;I/O5;D3;
+37;I/O4;D2;
+38;I/O3/TDO;D1;
+39;I/O2;D0;
+40;I/O1;IORQ/;Z80
+41;I/O0;M1;Z80 M1/ (active low)
+42;GND;;
+43;I/CLK1 (global clock);WR/;Z80 WR (the FPGA does not get WR, the CPLD does)
+44;I/OE1;CONFD;FLEX CONF_DONE

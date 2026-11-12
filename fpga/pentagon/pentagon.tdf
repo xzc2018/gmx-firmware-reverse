@@ -1,0 +1,345 @@
+-- pentagon: верхний уровень схемы FPGA GMX "PentaGON" (EPF8452ALC84).
+-- Модули:
+--   u_clk    clocks        Тактирование: 7 МГц, такт Z80 (турбо/норма), фаза RAS/CAS, кнопка Турбо
+--   u_cpu    cpu_io        Интерфейс Z80: дешифрация портов, стробы записи, чтение портов на шину DB, WR на системную плату
+--   u_ports  ports         Регистры портов #7FFD (Pentagon), #FE, #DFFD, #7EFD, #78FD, xx00
+--   u_magic  magic         Кнопка Magic, флаг теневого ПЗУ / TR-DOS, защёлки конфигурации для чтения
+--   u_mem    memctl        Память: выбор ОЗУ/ПЗУ, страницы, мультиплексор MA, RAS/CAS/WE, буферы, WAIT
+--   u_vt     video_timing  Развёртка Pentagon: счётчики точек/строк (320 строк), синхроимпульсы, INT, FLASH
+--   u_vo     video_out     Видеовыход: сдвиговый регистр пикселей, атрибуты, бордюр, RGBI
+INCLUDE "clocks.inc";
+INCLUDE "cpu_io.inc";
+INCLUDE "ports.inc";
+INCLUDE "magic.inc";
+INCLUDE "memctl.inc";
+INCLUDE "video_timing.inc";
+INCLUDE "video_out.inc";
+SUBDESIGN pentagon
+(
+	G : OUTPUT;	-- pin 1 (G)
+	DB[7..0] : BIDIR;	-- выводы: DB7=2, DB6=4, DB5=6, DB4=7, DB3=8, DB2=9, DB1=13, DB0=14
+	R : OUTPUT;	-- pin 3 (R)
+	p14M : INPUT;	-- pin 12 (14M)
+	MA[9..0] : OUTPUT;	-- выводы: MA9=25, MA8=24, MA7=23, MA6=22, MA5=21, MA4=20, MA3=19, MA2=18, MA1=16, MA0=15
+	RAS_n : OUTPUT;	-- pin 27 (RAS/)
+	CAS0_n : OUTPUT;	-- pin 28 (CAS0/)
+	CAS1 : OUTPUT;	-- pin 29 (CAS1)
+	WE_n : OUTPUT;	-- pin 30 (WE/)
+	MD[7..0] : INPUT;	-- выводы: MD7=54, MD6=39, MD5=37, MD4=36, MD3=35, MD2=34, MD1=31, MD0=40
+	WAIT_n : OUTPUT;	-- pin 41 (WAIT/)
+	RD_n : INPUT;	-- pin 42 (RD/)
+	IORQ_n : INPUT;	-- pin 43 (IORQ/)
+	M1 : INPUT;	-- pin 44 (M1)
+	MG : INPUT;	-- pin 45 (MG)
+	MREQ_n : INPUT;	-- pin 46 (MREQ/)
+	RAM_n : OUTPUT;	-- pin 48 (RAM/)
+	CLKCPU : OUTPUT;	-- pin 49 (CLKCPU)
+	EBUF : OUTPUT;	-- pin 50 (EBUF)
+	INT : OUTPUT;	-- pin 51 (INT)
+	TRBB : BIDIR;	-- pin 55 (TRBB)
+	A[15..0] : INPUT;	-- выводы: A15=56, A14=57, A13=77, A12=60, A11=61, A10=62, A9=63, A8=64, A7=65, A6=66, A5=67, A4=69, A3=70, A2=71, A1=72, A0=76
+	WRBUF : OUTPUT;	-- pin 58 (WRBUF)
+	RESET : INPUT;	-- pin 73 (RESET)
+	RDR_n : OUTPUT;	-- pin 78 (RDR/)
+	WROUT_n : OUTPUT;	-- pin 79 (WROUT/)
+	VS : OUTPUT;	-- pin 81 (VS)
+	SYNC : OUTPUT;	-- pin 82 (SYNC)
+	I : OUTPUT;	-- pin 83 (I)
+	B : OUTPUT	-- pin 84 (B)
+)
+VARIABLE
+	u_clk   : clocks;
+	u_cpu   : cpu_io;
+	u_ports : ports;
+	u_magic : magic;
+	u_mem   : memctl;
+	u_vt    : video_timing;
+	u_vo    : video_out;
+	clk7              : NODE;	-- clocks: 14M/2 = 7 МГц
+	ras               : NODE;	-- clocks: фаза RAS (= h0, задержан на полтакта 7 МГц) -> RAS/
+	ma_col            : NODE;	-- clocks: 1 = на MA адрес столбца (после спада RAS, по 14M)
+	cpu_clk           : NODE;	-- clocks: такт Z80 (CLKCPU): 7 МГц в турбо, 3,5 МГц (=!RAS) в норме
+	turbo             : NODE;	-- clocks: режим Турбо, синхронизированный (меняется вне цикла IORQ)
+	trbb_oe           : NODE;	-- clocks: разрешение вывода на TRBB (светодиод Турбо)
+	pix_clk           : NODE;	-- clocks: такт пикселей: 14 МГц при Graphic, иначе 7 МГц
+	rd_ff             : NODE;	-- cpu_io: выборка порта #FF (A7..A0 все 1)
+	iowr_go_n         : NODE;	-- cpu_io: 0 = начало цикла записи в порт (строб #FE и SCR, как у Pentagon)
+	port_wr_clk       : NODE;	-- cpu_io: строб записи в регистры портов (конец цикла)
+	a8_buf            : NODE;	-- cpu_io: буфер A8
+	a9_buf            : NODE;	-- cpu_io: буфер A9
+	a10_buf           : NODE;	-- cpu_io: буфер A10
+	a11_buf           : NODE;	-- cpu_io: буфер A11
+	a12_buf           : NODE;	-- cpu_io: буфер A12
+	a14_buf           : NODE;	-- cpu_io: буфер A14
+	a15_buf           : NODE;	-- cpu_io: буфер A15
+	sel_78fd          : NODE;	-- cpu_io: выборка #78FD (A10=0, A9=0)
+	sel_7efd          : NODE;	-- cpu_io: выборка #7EFD (A10=1, A9=1)
+	db_oe             : NODE;	-- cpu_io: FPGA выдаёт данные на DB
+	wr7ffd_n          : NODE;	-- cpu_io: запись #7FFD (A1=0, A15=0; без BLKEX2 ещё A14=1, A8=0/BLKEXT), активный 0
+	wrdffd_n          : NODE;	-- cpu_io: запись #DFFD (A15=1, A13=0, A1=0, не BLKEXT), активный 0
+	sel00_n           : NODE;	-- cpu_io: порт xx00 (A0=A1=A5=0, не теневой режим), активный 0
+	wr_mb_n           : NODE;	-- cpu_io: WR на материнскую плату (WROUT/)
+	db_out[7..0]      : NODE;	-- cpu_io: данные, выдаваемые FPGA на шину DB
+	sys[2..0]         : NODE;	-- ports: #7FFD.D2..0 SYS0..2 - страница окна #C000
+	scr               : NODE;	-- ports: #7FFD.D3 SCR (пишется по началу цикла записи)
+	rom1              : NODE;	-- ports: #7FFD.D4 ROM1
+	blkpk1            : NODE;	-- ports: #7FFD.D5 - запирает #7FFD до RESET (Pentagon)
+	sm[2..0]          : NODE;	-- ports: #DFFD.D2..0 SM0..2 - расширенная память, SM2 выбирает SIMM
+	mag_dis           : NODE;	-- ports: #7EFD.D2 MagEnable: 1 = Magic заблокирована
+	graphic           : NODE;	-- ports: #7EFD.D3 Graphic (при BLKEXT недоступен)
+	sw[6..0]          : NODE;	-- ports: #78FD.D6..0 SW0..6 - страница окна #8000
+	blkext            : NODE;	-- ports: xx00.D5 BLKEXT - отключает порты GMX
+	blkex2            : NODE;	-- ports: xx00.D6 BLKEX2 - #7FFD по A1, A15
+	st_pent           : NODE;	-- ports: xx00.D7 ST/PENT
+	brd[2..0]         : NODE;	-- ports: #FE.D2..0 - цвет бордюра (B, R, G), пишется по началу цикла записи
+	dos_act           : NODE;	-- magic: теневое ПЗУ: включение при выборке из 3Dxx, выход по M1 из ОЗУ
+	ml_sys[2..0]      : NODE;	-- magic: защёлки SYS0..2 для чтения #7AFD
+	ml_sm[2..0]       : NODE;	-- magic: защёлки SM0..2 для чтения #7AFD
+	ml_blkpk1         : NODE;	-- magic: защёлка BLKPK1 для чтения #7EFD
+	ml_scr            : NODE;	-- magic: защёлка SCR
+	ml_turbo          : NODE;	-- magic: защёлка Турбо
+	ml_gfx            : NODE;	-- magic: защёлка Graphic
+	ml_zero           : NODE;	-- magic: защёлка константы 0 (на месте SYS3 и BLK1, которых здесь нет)
+	ram_sel           : NODE;	-- memctl: обращение к ОЗУ: A15 # A14
+	ram_rd            : NODE;	-- memctl: процессор читает ОЗУ (-> RAM/)
+	rom_rd_n          : NODE;	-- memctl: чтение ПЗУ (RDR/), активный 0
+	m1_ram            : NODE;	-- memctl: выборка команды (M1) из ОЗУ
+	we                : NODE;	-- memctl: строб записи ОЗУ (-> WE/)
+	vid_slot          : NODE;	-- memctl: слот видео на шине памяти (иначе процессор)
+	cas0_drv          : NODE;	-- memctl: CAS0/ - SIMM 0 (активный 0)
+	cas1_drv          : NODE;	-- memctl: CAS1 - SIMM 1 (и такт защёлки DD5)
+	rdlatch_clk       : NODE;	-- memctl: WRBUF: такт защёлки DD9 (ОЗУ -> Z80)
+	simm1_oe          : NODE;	-- memctl: EBUF: выход защёлки DD5 (SIMM 1 -> MD)
+	wait_out          : NODE;	-- memctl: WAIT/ для Z80 (только в турбо)
+	ma_out[9..0]      : NODE;	-- memctl: адрес DRAM на выводы MA9..MA0
+	h[8..0]           : NODE;	-- video_timing: счётчик точек строки (7 МГц)
+	hborder           : NODE;	-- video_timing: горизонтальный бордюр/гашение
+	blank_n           : NODE;	-- video_timing: 0 = гашение (строчный импульс), гасит RGBI
+	csync             : NODE;	-- video_timing: синхросмесь -> SYNC
+	v[7..0]           : NODE;	-- video_timing: счётчик строк кадра
+	vborder           : NODE;	-- video_timing: вертикальный бордюр (старший бит счёта строк)
+	vsync             : NODE;	-- video_timing: кадровый синхроимпульс -> VS
+	int_ff            : NODE;	-- video_timing: запрос прерывания -> INT
+	flash             : NODE;	-- video_timing: мигание FLASH
+	at_d[4..1]        : NODE;	-- video_out: задержка такта загрузки атрибута (по 14M)
+	out_g             : NODE;	-- video_out: -> G: цвет точки или бордюр
+	out_r             : NODE;	-- video_out: -> R
+	out_b             : NODE;	-- video_out: -> B
+	out_i             : NODE;	-- video_out: -> I (яркость)
+	TRBB_tri : TRI;
+	db_tri[7..0] : TRI;
+BEGIN
+	-- clocks
+	clk7 = u_clk.o_clk7;
+	ras = u_clk.o_ras;
+	ma_col = u_clk.o_ma_col;
+	cpu_clk = u_clk.o_cpu_clk;
+	turbo = u_clk.o_turbo;
+	trbb_oe = u_clk.o_trbb_oe;
+	pix_clk = u_clk.o_pix_clk;
+	u_clk.port_wr_clk = port_wr_clk;
+	u_clk.sel_7efd = sel_7efd;
+	u_clk.graphic = graphic;
+	u_clk.h[] = h[];
+	u_clk.int_ff = int_ff;
+	u_clk.DB[] = DB[];
+	u_clk.IORQ_n = IORQ_n;
+	u_clk.p14M = p14M;
+	u_clk.TRBB = TRBB;
+	-- cpu_io
+	rd_ff = u_cpu.o_rd_ff;
+	iowr_go_n = u_cpu.o_iowr_go_n;
+	port_wr_clk = u_cpu.o_port_wr_clk;
+	a8_buf = u_cpu.o_a8_buf;
+	a9_buf = u_cpu.o_a9_buf;
+	a10_buf = u_cpu.o_a10_buf;
+	a11_buf = u_cpu.o_a11_buf;
+	a12_buf = u_cpu.o_a12_buf;
+	a14_buf = u_cpu.o_a14_buf;
+	a15_buf = u_cpu.o_a15_buf;
+	sel_78fd = u_cpu.o_sel_78fd;
+	sel_7efd = u_cpu.o_sel_7efd;
+	db_oe = u_cpu.o_db_oe;
+	wr7ffd_n = u_cpu.o_wr7ffd_n;
+	wrdffd_n = u_cpu.o_wrdffd_n;
+	sel00_n = u_cpu.o_sel00_n;
+	wr_mb_n = u_cpu.o_wr_mb_n;
+	db_out[] = u_cpu.o_db_out[];
+	u_cpu.clk7 = clk7;
+	u_cpu.cpu_clk = cpu_clk;
+	u_cpu.turbo = turbo;
+	u_cpu.sw[] = sw[];
+	u_cpu.blkext = blkext;
+	u_cpu.blkex2 = blkex2;
+	u_cpu.st_pent = st_pent;
+	u_cpu.brd[] = brd[];
+	u_cpu.dos_act = dos_act;
+	u_cpu.ml_sys[] = ml_sys[];
+	u_cpu.ml_sm[] = ml_sm[];
+	u_cpu.ml_blkpk1 = ml_blkpk1;
+	u_cpu.ml_scr = ml_scr;
+	u_cpu.ml_turbo = ml_turbo;
+	u_cpu.ml_gfx = ml_gfx;
+	u_cpu.ml_zero = ml_zero;
+	u_cpu.h[] = h[];
+	u_cpu.IORQ_n = IORQ_n;
+	u_cpu.A[] = A[];
+	u_cpu.MD[] = MD[];
+	u_cpu.M1 = M1;
+	u_cpu.RD_n = RD_n;
+	-- ports
+	sys[] = u_ports.o_sys[];
+	scr = u_ports.o_scr;
+	rom1 = u_ports.o_rom1;
+	blkpk1 = u_ports.o_blkpk1;
+	sm[] = u_ports.o_sm[];
+	mag_dis = u_ports.o_mag_dis;
+	graphic = u_ports.o_graphic;
+	sw[] = u_ports.o_sw[];
+	blkext = u_ports.o_blkext;
+	blkex2 = u_ports.o_blkex2;
+	st_pent = u_ports.o_st_pent;
+	brd[] = u_ports.o_brd[];
+	u_ports.iowr_go_n = iowr_go_n;
+	u_ports.port_wr_clk = port_wr_clk;
+	u_ports.sel_78fd = sel_78fd;
+	u_ports.sel_7efd = sel_7efd;
+	u_ports.wr7ffd_n = wr7ffd_n;
+	u_ports.wrdffd_n = wrdffd_n;
+	u_ports.sel00_n = sel00_n;
+	u_ports.dos_act = dos_act;
+	u_ports.DB[] = DB[];
+	u_ports.A[] = A[];
+	u_ports.RESET = RESET;
+	-- magic
+	dos_act = u_magic.o_dos_act;
+	ml_sys[] = u_magic.o_ml_sys[];
+	ml_sm[] = u_magic.o_ml_sm[];
+	ml_blkpk1 = u_magic.o_ml_blkpk1;
+	ml_scr = u_magic.o_ml_scr;
+	ml_turbo = u_magic.o_ml_turbo;
+	ml_gfx = u_magic.o_ml_gfx;
+	ml_zero = u_magic.o_ml_zero;
+	u_magic.turbo = turbo;
+	u_magic.rd_ff = rd_ff;
+	u_magic.a8_buf = a8_buf;
+	u_magic.a9_buf = a9_buf;
+	u_magic.a10_buf = a10_buf;
+	u_magic.a11_buf = a11_buf;
+	u_magic.a12_buf = a12_buf;
+	u_magic.sys[] = sys[];
+	u_magic.scr = scr;
+	u_magic.rom1 = rom1;
+	u_magic.blkpk1 = blkpk1;
+	u_magic.sm[] = sm[];
+	u_magic.mag_dis = mag_dis;
+	u_magic.graphic = graphic;
+	u_magic.ram_sel = ram_sel;
+	u_magic.rom_rd_n = rom_rd_n;
+	u_magic.m1_ram = m1_ram;
+	u_magic.RESET = RESET;
+	u_magic.MREQ_n = MREQ_n;
+	u_magic.A[] = A[];
+	u_magic.MG = MG;
+	u_magic.M1 = M1;
+	-- memctl
+	ram_sel = u_mem.o_ram_sel;
+	ram_rd = u_mem.o_ram_rd;
+	rom_rd_n = u_mem.o_rom_rd_n;
+	m1_ram = u_mem.o_m1_ram;
+	we = u_mem.o_we;
+	vid_slot = u_mem.o_vid_slot;
+	cas0_drv = u_mem.o_cas0_drv;
+	cas1_drv = u_mem.o_cas1_drv;
+	rdlatch_clk = u_mem.o_rdlatch_clk;
+	simm1_oe = u_mem.o_simm1_oe;
+	wait_out = u_mem.o_wait_out;
+	ma_out[] = u_mem.o_ma_out[];
+	u_mem.clk7 = clk7;
+	u_mem.ras = ras;
+	u_mem.ma_col = ma_col;
+	u_mem.cpu_clk = cpu_clk;
+	u_mem.turbo = turbo;
+	u_mem.a8_buf = a8_buf;
+	u_mem.a9_buf = a9_buf;
+	u_mem.a10_buf = a10_buf;
+	u_mem.a11_buf = a11_buf;
+	u_mem.a12_buf = a12_buf;
+	u_mem.a14_buf = a14_buf;
+	u_mem.a15_buf = a15_buf;
+	u_mem.sys[] = sys[];
+	u_mem.scr = scr;
+	u_mem.sm[] = sm[];
+	u_mem.graphic = graphic;
+	u_mem.sw[] = sw[];
+	u_mem.h[] = h[];
+	u_mem.hborder = hborder;
+	u_mem.v[] = v[];
+	u_mem.vborder = vborder;
+	u_mem.at_d[] = at_d[];
+	u_mem.MREQ_n = MREQ_n;
+	u_mem.IORQ_n = IORQ_n;
+	u_mem.A[] = A[];
+	u_mem.RD_n = RD_n;
+	u_mem.M1 = M1;
+	-- video_timing
+	h[] = u_vt.o_h[];
+	hborder = u_vt.o_hborder;
+	blank_n = u_vt.o_blank_n;
+	csync = u_vt.o_csync;
+	v[] = u_vt.o_v[];
+	vborder = u_vt.o_vborder;
+	vsync = u_vt.o_vsync;
+	int_ff = u_vt.o_int_ff;
+	flash = u_vt.o_flash;
+	u_vt.clk7 = clk7;
+	u_vt.turbo = turbo;
+	u_vt.graphic = graphic;
+	u_vt.st_pent = st_pent;
+	-- video_out
+	at_d[] = u_vo.o_at_d[];
+	out_g = u_vo.o_out_g;
+	out_r = u_vo.o_out_r;
+	out_b = u_vo.o_out_b;
+	out_i = u_vo.o_out_i;
+	u_vo.clk7 = clk7;
+	u_vo.ras = ras;
+	u_vo.pix_clk = pix_clk;
+	u_vo.graphic = graphic;
+	u_vo.brd[] = brd[];
+	u_vo.we = we;
+	u_vo.vid_slot = vid_slot;
+	u_vo.h[] = h[];
+	u_vo.hborder = hborder;
+	u_vo.blank_n = blank_n;
+	u_vo.vborder = vborder;
+	u_vo.flash = flash;
+	u_vo.p14M = p14M;
+	u_vo.MD[] = MD[];
+	-- выводы
+	G = out_g;
+	db_tri[].in = db_out[];
+	db_tri[].oe = db_oe;
+	DB[] = db_tri[].out;
+	R = out_r;
+	MA[] = ma_out[];
+	RAS_n = ras;
+	CAS0_n = cas0_drv;
+	CAS1 = cas1_drv;
+	WE_n = !we;
+	WAIT_n = wait_out;
+	RAM_n = !ram_rd;
+	CLKCPU = !cpu_clk;
+	EBUF = simm1_oe;
+	INT = !int_ff;
+	TRBB_tri.in = turbo;
+	TRBB_tri.oe = trbb_oe;
+	TRBB = TRBB_tri.out;
+	WRBUF = rdlatch_clk;
+	RDR_n = rom_rd_n;
+	WROUT_n = wr_mb_n;
+	VS = !vsync;
+	SYNC = csync;
+	I = out_i;
+	B = out_b;
+END;

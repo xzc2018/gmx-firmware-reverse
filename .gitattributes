@@ -1,0 +1,9 @@
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.acf text eol=crlf
+*.bin binary
+*.rbf binary
+*.pof binary
+*.rom binary
+*.edo -diff

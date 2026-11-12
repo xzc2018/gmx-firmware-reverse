@@ -1,0 +1,206 @@
+-- ports: Регистры портов #7FFD #1FFD #DFFD #7EFD #78FD #7AFD/#7CFD xx00 и бордюра #FE
+-- Схема GMX "Scorpion", FPGA EPF8452ALC84.
+SUBDESIGN ports
+(
+	A[15..0],
+	DB[7..0],
+	RESET,
+	port_wr_clk,
+	sel_7efd,
+	sel_7afd,
+	sel_78fd,
+	sel_7cfd_n,
+	wr7ffd_n,
+	wr1ffd_n,
+	wrdffd_n,
+	sel_ula,
+	sel00_n	: INPUT;
+	o_sys[3..0],
+	o_scr,
+	o_rom1,
+	o_blkpk1,
+	o_blk1,
+	o_trdos,
+	o_sm[2..0],
+	o_mag_dis,
+	o_graphic,
+	o_sw[6..0],
+	o_scrl[7..4],
+	o_scrh[5..0],
+	o_blkext,
+	o_blkex2,
+	o_st_pent,
+	o_brd[2..0]	: OUTPUT;
+)
+VARIABLE
+	sys[3..0]         : DFFE;	-- страница окна #C000: SYS0..2 = #7FFD.D0..2, SYS3 = #1FFD.D4
+	scr               : DFFE;	-- #7FFD.D3 SCR - экран 5/7
+	rom1              : DFFE;	-- #7FFD.D4 ROM1 - ПЗУ 128/48
+	blkpk1            : DFFE;	-- #7FFD.D5 BLKPK1 - блокировка #7FFD
+	blk1              : DFFE;	-- #1FFD.D0 BLK1 - ОЗУ вместо ПЗУ в 0000-3FFF
+	trdos             : DFFE;	-- #1FFD.D2 TRDOS - принудительное ПЗУ TR-DOS
+	sm[2..0]          : DFFE;	-- #DFFD.D0..2 SM0..2 - расширенная память (до 2 МБ), SM2 выбирает SIMM
+	mag_dis           : DFFE;	-- #7EFD.D2 MagEnable: 1 = кнопка Magic заблокирована
+	graphic           : DFFE;	-- #7EFD.D3 Graphic: 1 = экран 640x200
+	sw[6..0]          : DFFE;	-- #78FD.D0..6 SW0..6 - страница второго окна #8000-#BFFF
+	scrl[7..4]        : DFFE;	-- #7AFD.D7..4 - регистр скроллинга, младший байт (D3..D0 всегда 0)
+	scrh[5..0]        : DFFE;	-- #7CFD.D5..0 - регистр скроллинга, старший байт (адрес бит 13..8)
+	fixrom            : DFFE;	-- xx00.D4 FIXROM
+	blkext            : DFFE;	-- xx00.D5 BLKEXT - блокировка портов GMX
+	blkex2            : DFFE;	-- xx00.D6 BLKEX2
+	st_pent           : DFFE;	-- xx00.D7 ST/PENT: 1 = INT в начале КСИ, 320 строк (Pentagon)
+	ext_rst           : LCELL;	-- сброс BLKEXT/BLKEX2 по RESET только при FIXROM = 0 (так же в CPLD)
+	brd[2..0]         : DFFE;	-- #FE.D2..0 - цвет бордюра (B, R, G)
+BEGIN
+
+	-- sys[3..0]: страница окна #C000: SYS0..2 = #7FFD.D0..2, SYS3 = #1FFD.D4
+	--   sys3: #1FFD.D4 SYS3 - ОЗУ 256К
+	--   sys2: #7FFD.D2 SYS2
+	--   sys1: #7FFD.D1 SYS1
+	--   sys0: #7FFD.D0 SYS0 - страница ОЗУ
+	sys[].clk = port_wr_clk;
+	sys[].clrn = RESET;
+	sys3.ena = !wr1ffd_n;
+	sys2.ena = !wr7ffd_n;
+	sys1.ena = !wr7ffd_n;
+	sys0.ena = !wr7ffd_n;
+	sys[].d = (DB4, DB[2..0]);
+
+	-- scr: #7FFD.D3 SCR - экран 5/7
+	scr.clk = port_wr_clk;
+	scr.clrn = RESET;
+	scr.ena = !wr7ffd_n;
+	scr.d = DB3;
+
+	-- rom1: #7FFD.D4 ROM1 - ПЗУ 128/48
+	rom1.clk = port_wr_clk;
+	rom1.clrn = RESET;
+	rom1.ena = !wr7ffd_n;
+	rom1.d = DB4;
+
+	-- blkpk1: #7FFD.D5 BLKPK1 - блокировка #7FFD
+	blkpk1.clk = port_wr_clk;
+	blkpk1.clrn = RESET;
+	blkpk1.ena = !wr7ffd_n;
+	blkpk1.d = DB5;
+
+	-- blk1: #1FFD.D0 BLK1 - ОЗУ вместо ПЗУ в 0000-3FFF
+	blk1.clk = port_wr_clk;
+	blk1.clrn = RESET;
+	blk1.ena = !wr1ffd_n;
+	blk1.d = DB0;
+
+	-- trdos: #1FFD.D2 TRDOS - принудительное ПЗУ TR-DOS
+	trdos.clk = port_wr_clk;
+	trdos.clrn = RESET;
+	trdos.ena = !wr1ffd_n;
+	trdos.d = DB2;
+
+	-- sm[2..0]: #DFFD.D0..2 SM0..2 - расширенная память (до 2 МБ), SM2 выбирает SIMM
+	--   sm2: #DFFD.D2 SM2 - выбор SIMM
+	--   sm1: #DFFD.D1 SM1
+	--   sm0: #DFFD.D0 SM0 - расширение ОЗУ до 2М
+	sm[].clk = port_wr_clk;
+	sm[].clrn = RESET;
+	sm[].ena = !wrdffd_n;
+	sm[].d = DB[2..0];
+
+	-- mag_dis: #7EFD.D2 MagEnable: 1 = кнопка Magic заблокирована
+	mag_dis.clk = port_wr_clk;
+	mag_dis.clrn = RESET;
+	mag_dis.ena = sel_7efd;
+	mag_dis.d = DB2;
+
+	-- graphic: #7EFD.D3 Graphic: 1 = экран 640x200
+	graphic.clk = port_wr_clk;
+	graphic.clrn = RESET;
+	graphic.ena = sel_7efd;
+	graphic.d = DB3;
+
+	-- sw[6..0]: #78FD.D0..6 SW0..6 - страница второго окна #8000-#BFFF
+	--   sw6: #78FD.D6 SW6
+	--   sw5: #78FD.D5 SW5
+	--   sw4: #78FD.D4 SW4
+	--   sw3: #78FD.D3 SW3
+	--   sw2: #78FD.D2 SW2
+	--   sw1: #78FD.D1 SW1 (в номер страницы идёт инверсным: после сброса окно = банк 2)
+	--   sw0: #78FD.D0 SW0 - страница второго окна #8000-#BFFF
+	sw[].clk = port_wr_clk;
+	sw[].clrn = RESET;
+	sw[].ena = sel_78fd;
+	sw[].d = DB[6..0];
+
+	-- scrl[7..4]: #7AFD.D7..4 - регистр скроллинга, младший байт (D3..D0 всегда 0)
+	--   scrl7: #7AFD.D7
+	--   scrl6: #7AFD.D6
+	--   scrl5: #7AFD.D5
+	--   scrl4: #7AFD.D4 регистр скроллинга, мл. байт (D0-D3 всегда 0)
+	scrl[].clk = port_wr_clk;
+	scrl[].clrn = RESET;
+	scrl[].ena = sel_7afd;
+	scrl[].d = DB[7..4];
+
+	-- scrh[5..0]: #7CFD.D5..0 - регистр скроллинга, старший байт (адрес бит 13..8)
+	--   scrh5: #7CFD.D5
+	--   scrh4: #7CFD.D4
+	--   scrh3: #7CFD.D3
+	--   scrh2: #7CFD.D2
+	--   scrh1: #7CFD.D1
+	--   scrh0: #7CFD.D0 регистр скроллинга, ст. байт (адрес бит 8)
+	scrh[].clk = port_wr_clk;
+	scrh[].clrn = RESET;
+	scrh[].ena = !sel_7cfd_n;
+	scrh[].d = DB[5..0];
+
+	-- fixrom: xx00.D4 FIXROM
+	fixrom.clk = port_wr_clk;
+	fixrom.ena = !A0 & !sel00_n;
+	fixrom.d = DB4;
+
+	-- blkext: xx00.D5 BLKEXT - блокировка портов GMX
+	blkext.clk = port_wr_clk;
+	blkext.clrn = ext_rst;
+	blkext.ena = !A0 & !sel00_n;
+	blkext.d = DB5;
+
+	-- blkex2: xx00.D6 BLKEX2
+	blkex2.clk = port_wr_clk;
+	blkex2.clrn = ext_rst;
+	blkex2.ena = !A0 & !sel00_n;
+	blkex2.d = DB6;
+
+	-- st_pent: xx00.D7 ST/PENT: 1 = INT в начале КСИ, 320 строк (Pentagon)
+	st_pent.clk = port_wr_clk;
+	st_pent.ena = !A0 & !sel00_n;
+	st_pent.d = DB7;
+
+	-- ext_rst: сброс BLKEXT/BLKEX2 по RESET только при FIXROM = 0 (так же в CPLD)
+	ext_rst = RESET
+		# fixrom;
+
+	-- brd[2..0]: #FE.D2..0 - цвет бордюра (B, R, G)
+	--   brd2: #FE.D2 бордюр B
+	--   brd1: #FE.D1 бордюр R
+	--   brd0: #FE.D0 бордюр G
+	brd[].clk = port_wr_clk;
+	brd[].ena = !A0 & sel_ula;
+	brd[].d = DB[2..0];
+
+	-- выходы модуля
+	o_sys[] = sys[];
+	o_scr = scr;
+	o_rom1 = rom1;
+	o_blkpk1 = blkpk1;
+	o_blk1 = blk1;
+	o_trdos = trdos;
+	o_sm[] = sm[];
+	o_mag_dis = mag_dis;
+	o_graphic = graphic;
+	o_sw[] = sw[];
+	o_scrl[] = scrl[];
+	o_scrh[] = scrh[];
+	o_blkext = blkext;
+	o_blkex2 = blkex2;
+	o_st_pent = st_pent;
+	o_brd[] = brd[];
+END;

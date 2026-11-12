@@ -1,0 +1,83 @@
+-- clocks: Тактирование: 7 МГц, такт Z80 (турбо/норма), фаза RAS/CAS, кнопка Турбо
+-- Схема GMX "PentaGON", FPGA EPF8452ALC84.
+SUBDESIGN clocks
+(
+	DB[7..0],
+	IORQ_n,
+	TRBB,
+	p14M,
+	port_wr_clk,
+	sel_7efd,
+	graphic,
+	h[8..0],
+	int_ff	: INPUT;
+	o_clk7,
+	o_ras,
+	o_ma_col,
+	o_cpu_clk,
+	o_turbo,
+	o_trbb_oe,
+	o_pix_clk	: OUTPUT;
+)
+VARIABLE
+	clk7              : DFF;	-- 14M/2 = 7 МГц
+	ras               : DFF;	-- фаза RAS (= h0, задержан на полтакта 7 МГц) -> RAS/
+	ma_col            : DFF;	-- 1 = на MA адрес столбца (после спада RAS, по 14M)
+	cpu_clk           : LCELL;	-- такт Z80 (CLKCPU): 7 МГц в турбо, 3,5 МГц (=!RAS) в норме
+	turbo             : DFFE;	-- режим Турбо, синхронизированный (меняется вне цикла IORQ)
+	turbo_req         : DFF;	-- запрошенный режим Турбо, переключается кнопкой
+	trbb_smp          : DFF;	-- кнопка Турбо (TRBB), опрошенная по INT
+	trbb_oe           : LCELL;	-- разрешение вывода на TRBB (светодиод Турбо)
+	pix_clk           : LCELL;	-- такт пикселей: 14 МГц при Graphic, иначе 7 МГц
+	turbo_ld_n        : LCELL;	-- 0 = запись в #7EFD: загрузить turbo_req (при BLKEXT недоступно)
+BEGIN
+
+	-- clk7: 14M/2 = 7 МГц
+	clk7.clk = p14M;
+	clk7.d = !clk7;
+
+	-- ras: фаза RAS (= h0, задержан на полтакта 7 МГц) -> RAS/
+	ras.clk = !clk7;
+	ras.d = h0;
+
+	-- ma_col: 1 = на MA адрес столбца (после спада RAS, по 14M)
+	ma_col.clk = !p14M;
+	ma_col.d = !ras;
+
+	-- cpu_clk: такт Z80 (CLKCPU): 7 МГц в турбо, 3,5 МГц (=!RAS) в норме
+	IF turbo THEN cpu_clk = clk7; ELSE cpu_clk = !ras; END IF;
+
+	-- turbo: режим Турбо, синхронизированный (меняется вне цикла IORQ)
+	turbo.clk = clk7;
+	turbo.ena = !IORQ_n & !ras;
+	turbo.d = turbo_req;
+
+	-- turbo_req: запрошенный режим Турбо, переключается кнопкой
+	turbo_req.clk = !trbb_smp;
+	turbo_req.clrn = !(!turbo_ld_n & !DB7);
+	turbo_req.prn = !(!turbo_ld_n & DB7);
+	turbo_req.d = !turbo_req;
+
+	-- trbb_smp: кнопка Турбо (TRBB), опрошенная по INT
+	trbb_smp.clk = int_ff;
+	trbb_smp.d = TRBB;
+
+	-- trbb_oe: разрешение вывода на TRBB (светодиод Турбо)
+	trbb_oe = turbo & TRBB;
+
+	-- pix_clk: такт пикселей: 14 МГц при Graphic, иначе 7 МГц
+	IF !graphic THEN pix_clk = clk7; ELSE pix_clk = p14M; END IF;
+
+	-- turbo_ld_n: 0 = запись в #7EFD: загрузить turbo_req (при BLKEXT недоступно)
+	turbo_ld_n = !sel_7efd
+		# port_wr_clk;
+
+	-- выходы модуля
+	o_clk7 = clk7;
+	o_ras = ras;
+	o_ma_col = ma_col;
+	o_cpu_clk = cpu_clk;
+	o_turbo = turbo;
+	o_trbb_oe = trbb_oe;
+	o_pix_clk = pix_clk;
+END;
